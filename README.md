@@ -212,6 +212,20 @@ const messagebird = createSMSProvider({
 });
 ```
 
+### Storage Factory
+
+```javascript
+import { createStorageProvider } from 'mern-integrations';
+
+// Cloudinary Provider
+const storage = createStorageProvider({
+  provider: 'cloudinary',
+  cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+  apiKey: process.env.CLOUDINARY_API_KEY,
+  apiSecret: process.env.CLOUDINARY_API_SECRET
+});
+```
+
 ---
 
 ## 6. Payment Providers
@@ -486,7 +500,110 @@ MessageBird does not support built-in OTP methods (`sendOTP`, `verifyOTP`, `rese
 
 ---
 
-## 9. Error Handling & Response Normalization
+## 9. Storage Providers
+
+### Cloudinary Integration
+
+`CloudinaryProvider` implements media and file asset storage operations using the official Cloudinary Node.js SDK.
+
+#### Environment Variables
+
+```env
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+```
+
+#### Provider Initialization
+
+```javascript
+import { createStorageProvider } from 'mern-integrations';
+
+const storage = createStorageProvider({
+  provider: 'cloudinary',
+  cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+  apiKey: process.env.CLOUDINARY_API_KEY,
+  apiSecret: process.env.CLOUDINARY_API_SECRET
+});
+```
+
+#### Uploading Assets (`upload`)
+
+Supports local file paths, remote URLs, and base64/data URIs with transformations and folder tagging.
+
+```javascript
+const uploadResult = await storage.upload({
+  file: 'https://images.unsplash.com/photo-1575936123452-b67c3203c357',
+  folder: 'products',
+  publicId: 'product_101',
+  tags: ['ecommerce', 'apparel'],
+  transformation: [
+    { width: 800, height: 600, crop: 'limit' },
+    { quality: 'auto', fetch_format: 'auto' }
+  ]
+});
+```
+
+#### Normalized Upload Response:
+```json
+{
+  "success": true,
+  "provider": "cloudinary",
+  "data": {
+    "publicId": "products/product_101",
+    "secureUrl": "https://res.cloudinary.com/demo/image/upload/v1/products/product_101.jpg",
+    "url": "http://res.cloudinary.com/demo/image/upload/v1/products/product_101.jpg",
+    "resourceType": "image",
+    "format": "jpg",
+    "bytes": 45120,
+    "width": 800,
+    "height": 600,
+    "createdAt": "2026-09-04T12:00:00Z",
+    "raw": { /* Upstream Cloudinary API response */ }
+  }
+}
+```
+
+#### In-Memory Buffer Upload (`uploadBuffer`)
+
+Uploads memory buffers (e.g. from Multer / Express file uploads) via upload streams without writing temporary files to disk.
+
+```javascript
+const bufferResult = await storage.uploadBuffer({
+  buffer: req.file.buffer,
+  folder: 'invoices',
+  publicId: 'invoice_2026_09'
+});
+```
+
+#### Generating Delivery URLs (`getUrl`)
+
+Computes transformed public delivery URLs instantaneously without making network API calls.
+
+```javascript
+const urlResult = storage.getUrl({
+  publicId: 'products/product_101',
+  transformation: { width: 400, height: 300, crop: 'fill' },
+  secure: true // Defaults to true (HTTPS)
+});
+
+console.log(urlResult.data.url);
+```
+
+#### Deleting Assets (`delete`)
+
+Deletes assets by public ID with optional CDN cache invalidation.
+
+```javascript
+const deleteResult = await storage.delete({
+  publicId: 'products/product_101',
+  invalidate: true
+});
+```
+
+---
+
+## 10. Error Handling & Response Normalization
 
 All public methods throw structured errors inheriting from `IntegrationError` or `ValidationError`:
 
@@ -494,7 +611,7 @@ All public methods throw structured errors inheriting from `IntegrationError` or
 import { IntegrationError, ValidationError } from 'mern-integrations';
 
 try {
-  await sms.sendOTP({ mobile: 'invalid_phone' });
+  await storage.upload({ file: '' });
 } catch (error) {
   if (error instanceof ValidationError) {
     console.error('Validation error:', error.toJSON());
@@ -506,7 +623,7 @@ try {
 
 ---
 
-## 10. Example Scripts
+## 11. Example Scripts
 
 Run the standalone example scripts:
 
@@ -525,19 +642,21 @@ npm run example:msg91
 
 # Run MessageBird WhatsApp & SMS example
 npm run example:messagebird
+
+# Run Cloudinary storage example
+npm run example:cloudinary
 ```
 
 ---
 
-## 11. Testing Instructions
+## 12. Testing Instructions
 
 The test suite uses **Jest** with ES Module support. All gateway API calls and cryptographic flows are tested using mocks and verified reference vectors.
 
 ```bash
-# Run all tests (Razorpay + CCAvenue + Resend + MSG91 + MessageBird)
+# Run all tests (Razorpay + CCAvenue + Resend + MSG91 + MessageBird + Cloudinary)
 npm test
 
 # Run tests in watch mode
 npm run test:watch
 ```
-

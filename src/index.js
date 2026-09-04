@@ -21,3 +21,7 @@ export { MSG91Provider } from './sms/providers/msg91/MSG91Provider.js';
 export { MessageBirdProvider } from './sms/providers/messagebird/MessageBirdProvider.js';
 export { createSMSProvider } from './sms/factories/SMSFactory.js';
 
+// Storage module
+export { StorageProvider } from './storage/interfaces/StorageProvider.js';
+export { CloudinaryProvider } from './storage/providers/cloudinary/CloudinaryProvider.js';
+export { createStorageProvider } from './storage/factories/StorageFactory.js';
