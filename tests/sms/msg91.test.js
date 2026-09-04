@@ -39,6 +39,7 @@ describe('SMSProvider & MSG91 Integration', () => {
       await expect(dummy.sendOTP({})).rejects.toThrow(IntegrationError);
       await expect(dummy.verifyOTP({})).rejects.toThrow(IntegrationError);
       await expect(dummy.resendOTP({})).rejects.toThrow(IntegrationError);
+      await expect(dummy.sendWhatsApp({})).rejects.toThrow(IntegrationError);
     });
   });
 
@@ -634,6 +635,298 @@ describe('SMSProvider & MSG91 Integration', () => {
         provider.sendSMS({
           to: '919999999999',
           message: 'Test message'
+        })
+      ).rejects.toThrow(IntegrationError);
+    });
+  });
+
+  describe('sendWhatsApp()', () => {
+    test('should validate recipients and required templateId', async () => {
+      // Missing to
+      await expect(
+        provider.sendWhatsApp({ templateId: 'welcome_template' })
+      ).rejects.toThrow(ValidationError);
+
+      // Empty recipient array
+      await expect(
+        provider.sendWhatsApp({ to: [], templateId: 'welcome_template' })
+      ).rejects.toThrow(ValidationError);
+
+      // Invalid mobile number in recipient
+      await expect(
+        provider.sendWhatsApp({ to: 'invalid_phone', templateId: 'welcome_template' })
+      ).rejects.toThrow(ValidationError);
+
+      // Missing templateId
+      await expect(
+        provider.sendWhatsApp({ to: '919999999999' })
+      ).rejects.toThrow(ValidationError);
+      await expect(
+        provider.sendWhatsApp({ to: '919999999999', templateId: '' })
+      ).rejects.toThrow(ValidationError);
+      await expect(
+        provider.sendWhatsApp({ to: '919999999999', templateId: '   ' })
+      ).rejects.toThrow(ValidationError);
+    });
+
+    test('should validate variables if provided', async () => {
+      await expect(
+        provider.sendWhatsApp({
+          to: '919999999999',
+          templateId: 'welcome_template',
+          variables: 'invalid_string_vars'
+        })
+      ).rejects.toThrow(ValidationError);
+
+      await expect(
+        provider.sendWhatsApp({
+          to: '919999999999',
+          templateId: 'welcome_template',
+          variables: ['not', 'an', 'object']
+        })
+      ).rejects.toThrow(ValidationError);
+    });
+
+    test('should successfully send WhatsApp message to single recipient with variables', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          type: 'success',
+          message: 'WhatsApp template message sent successfully',
+          request_id: 'wa_req_998811'
+        })
+      });
+
+      const result = await provider.sendWhatsApp({
+        to: '+91 99999 99999',
+        templateId: 'order_update_v1',
+        integratedNumber: '919876543210',
+        variables: {
+          body_1: 'John Doe',
+          body_2: 'ORDER-1002'
+        }
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://control.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/',
+        {
+          method: 'POST',
+          headers: {
+            authkey: mockAuthKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            integrated_number: '919876543210',
+            content_type: 'template',
+            payload: {
+              type: 'template',
+              template: {
+                name: 'order_update_v1',
+                language: {
+                  code: 'en',
+                  policy: 'deterministic'
+                },
+                to_and_components: [
+                  {
+                    to: ['919999999999'],
+                    components: {
+                      body_1: {
+                        type: 'text',
+                        value: 'John Doe'
+                      },
+                      body_2: {
+                        type: 'text',
+                        value: 'ORDER-1002'
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          })
+        }
+      );
+
+      expect(result).toEqual({
+        success: true,
+        provider: 'msg91',
+        data: {
+          requestId: 'wa_req_998811',
+          type: 'success',
+          message: 'WhatsApp template message sent successfully',
+          recipients: '919999999999',
+          raw: {
+            type: 'success',
+            message: 'WhatsApp template message sent successfully',
+            request_id: 'wa_req_998811'
+          }
+        }
+      });
+    });
+
+    test('should use integratedNumber from constructor and support templateName alias', async () => {
+      const waProvider = new MSG91Provider({
+        authKey: mockAuthKey,
+        integratedNumber: '911122334455',
+        fetch: mockFetch
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          type: 'success',
+          message: 'Message queued',
+          request_id: 'wa_queued_44'
+        })
+      });
+
+      const result = await waProvider.sendWhatsApp({
+        to: ['+91 99999 99999', '+1 415 555-2671'],
+        templateName: 'auth_otp_v2',
+        language: 'hi',
+        namespace: 'custom_namespace_123',
+        components: {
+          header_1: { type: 'text', value: 'Security Alert' },
+          body_1: { type: 'text', value: '456789' }
+        }
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://control.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/',
+        {
+          method: 'POST',
+          headers: {
+            authkey: mockAuthKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            integrated_number: '911122334455',
+            content_type: 'template',
+            payload: {
+              type: 'template',
+              template: {
+                name: 'auth_otp_v2',
+                language: {
+                  code: 'hi',
+                  policy: 'deterministic'
+                },
+                namespace: 'custom_namespace_123',
+                to_and_components: [
+                  {
+                    to: ['919999999999'],
+                    components: {
+                      header_1: { type: 'text', value: 'Security Alert' },
+                      body_1: { type: 'text', value: '456789' }
+                    }
+                  },
+                  {
+                    to: ['14155552671'],
+                    components: {
+                      header_1: { type: 'text', value: 'Security Alert' },
+                      body_1: { type: 'text', value: '456789' }
+                    }
+                  }
+                ]
+              }
+            }
+          })
+        }
+      );
+
+      expect(result.data.recipients).toEqual(['919999999999', '14155552671']);
+      expect(result.data.requestId).toBe('wa_queued_44');
+    });
+
+    test('should throw IntegrationError when MSG91 returns error response', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({
+          type: 'error',
+          message: 'Template not approved or integrated number not active'
+        })
+      });
+
+      await expect(
+        provider.sendWhatsApp({
+          to: '919999999999',
+          templateId: 'unapproved_template'
+        })
+      ).rejects.toThrow(IntegrationError);
+    });
+
+    test('should throw IntegrationError on HTTP 401 authentication failure', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({
+          type: 'error',
+          message: 'Auth key not valid'
+        })
+      });
+
+      try {
+        await provider.sendWhatsApp({
+          to: '919999999999',
+          templateId: 'order_template'
+        });
+        expect(true).toBe(false);
+      } catch (err) {
+        expect(err).toBeInstanceOf(IntegrationError);
+        expect(err.code).toBe('AUTHENTICATION_ERROR');
+        expect(err.statusCode).toBe(401);
+      }
+    });
+
+    test('should throw IntegrationError on HTTP 429 rate limit exceeded', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        json: async () => ({
+          type: 'error',
+          message: 'Rate limit exceeded'
+        })
+      });
+
+      try {
+        await provider.sendWhatsApp({
+          to: '919999999999',
+          templateId: 'order_template'
+        });
+        expect(true).toBe(false);
+      } catch (err) {
+        expect(err).toBeInstanceOf(IntegrationError);
+        expect(err.code).toBe('RATE_LIMIT_EXCEEDED');
+        expect(err.statusCode).toBe(429);
+      }
+    });
+
+    test('should throw IntegrationError on HTTP 502 HTML error page', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 502,
+        json: async () => {
+          throw new SyntaxError('Unexpected token < in JSON at position 0');
+        }
+      });
+
+      await expect(
+        provider.sendWhatsApp({
+          to: '919999999999',
+          templateId: 'order_template'
+        })
+      ).rejects.toThrow(IntegrationError);
+    });
+
+    test('should throw IntegrationError on network socket error', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('Connection reset by peer'));
+
+      await expect(
+        provider.sendWhatsApp({
+          to: '919999999999',
+          templateId: 'order_template'
         })
       ).rejects.toThrow(IntegrationError);
     });

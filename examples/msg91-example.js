@@ -43,7 +43,18 @@ async function runExample() {
   };
   console.log(JSON.stringify(smsPayload, null, 2));
 
-  // 3. Dry-run safety check
+  console.log('\n--- 3. Send WhatsApp Request Payload ---');
+  const whatsAppPayload = {
+    to: sampleMobile,
+    templateId: 'sample_whatsapp_template_v1',
+    variables: {
+      body_1: 'Customer',
+      body_2: '123456'
+    }
+  };
+  console.log(JSON.stringify(whatsAppPayload, null, 2));
+
+  // 4. Dry-run safety check
   const isPlaceholder =
     !process.env.MSG91_AUTH_KEY ||
     authKey.includes('sample') ||
@@ -53,13 +64,15 @@ async function runExample() {
     console.log(
       '\n[INFO] Skipping live MSG91 API calls because MSG91_AUTH_KEY is not configured or is a placeholder.'
     );
-    console.log('[INFO] In production with valid credentials and DLT-approved templates, call:');
+    console.log('[INFO] In production with valid credentials and DLT/Meta-approved templates, call:');
     console.log('       1. const otpResult = await smsProvider.sendOTP(otpPayload);');
     console.log('          Result: { success: true, provider: "msg91", data: { requestId: "...", type: "success", mobile: "919999999999" } }');
     console.log('       2. const verifyResult = await smsProvider.verifyOTP({ mobile: "919999999999", otp: "123456" });');
     console.log('          Result: { success: true, provider: "msg91", data: { verified: true, mobile: "919999999999" } }');
     console.log('       3. const smsResult = await smsProvider.sendSMS(smsPayload);');
     console.log('          Result: { success: true, provider: "msg91", data: { requestId: "...", message: "...", recipients: "919999999999" } }');
+    console.log('       4. const waResult = await smsProvider.sendWhatsApp(whatsAppPayload);');
+    console.log('          Result: { success: true, provider: "msg91", data: { requestId: "...", message: "WhatsApp message processed successfully", recipients: "919999999999" } }');
     console.log('\n=== MSG91 Example Run Complete (Dry Run) ===');
     return;
   }

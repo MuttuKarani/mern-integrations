@@ -22,6 +22,9 @@ export class MSG91Provider extends SMSProvider {
   /** @type {string} */
   #baseUrl;
 
+  /** @type {string|null} */
+  #integratedNumber;
+
   /** @type {typeof fetch} */
   #fetch;
 
@@ -29,16 +32,18 @@ export class MSG91Provider extends SMSProvider {
    * @param {Object} config
    * @param {string} config.authKey - MSG91 authentication key.
    * @param {string} [config.baseUrl='https://control.msg91.com'] - Base URL for MSG91 APIs.
+   * @param {string} [config.integratedNumber] - Verified WhatsApp integrated number (with country code).
    * @param {typeof fetch} [config.fetch] - Custom fetch implementation (useful for testing/mocking).
    * @throws {ValidationError} If authKey is missing or not a non-empty string.
    */
-  constructor({ authKey, baseUrl = 'https://control.msg91.com', fetch: customFetch = null } = {}) {
+  constructor({ authKey, baseUrl = 'https://control.msg91.com', integratedNumber = null, fetch: customFetch = null } = {}) {
     super('msg91');
 
     validateRequiredString(authKey, 'authKey', 'msg91');
 
     this.#authKey = authKey.trim();
     this.#baseUrl = baseUrl ? baseUrl.replace(/\/+$/, '') : 'https://control.msg91.com';
+    this.#integratedNumber = integratedNumber ? String(integratedNumber).trim() : null;
     this.#fetch = customFetch || globalThis.fetch;
   }
 
@@ -351,6 +356,132 @@ export class MSG91Provider extends SMSProvider {
       });
     } catch (error) {
       throw this.#handleProviderError(error, 'Failed to send SMS');
+    }
+  }
+
+  /**
+   * Sends WhatsApp template messages via MSG91 WhatsApp Outbound Bulk API.
+   *
+   * @param {Object} params
+   * @param {string|string[]} params.to - Single mobile number or array of mobile numbers.
+   * @param {string} [params.templateId] - MSG91 approved WhatsApp template ID or name.
+   * @param {string} [params.templateName] - Alias for templateId.
+   * @param {string|Object} [params.language='en'] - Language code (e.g. 'en') or language object.
+   * @param {Object} [params.variables={}] - Dynamic template variables (e.g., { body_1: 'Val' } or { name: 'Customer' }).
+   * @param {Object} [params.components] - Pre-formatted MSG91 WhatsApp components object.
+   * @param {string} [params.integratedNumber] - WhatsApp Business integrated number (overrides constructor value).
+   * @param {string} [params.namespace] - Optional WhatsApp template namespace.
+   * @param {Object} [params.extraOptions] - Additional MSG91 WhatsApp parameters.
+   * @returns {Promise<{success: true, provider: 'msg91', data: Object}>}
+   * @throws {ValidationError} If parameters fail validation.
+   * @throws {IntegrationError} If MSG91 rejects or fails the request.
+   */
+  async sendWhatsApp({
+    to,
+    templateId,
+    templateName,
+    language = 'en',
+    variables = {},
+    components = null,
+    integratedNumber = null,
+    namespace = null,
+    ...extraOptions
+  } = {}) {
+    const normalizedRecipients = validateMobileRecipients(to, 'to', 'msg91');
+
+    const templateIdentifier = templateId || templateName;
+    validateRequiredString(templateIdentifier, 'templateId', 'msg91');
+
+    if (variables !== undefined && variables !== null) {
+      if (typeof variables !== 'object' || Array.isArray(variables)) {
+        throw new ValidationError("Field 'variables' must be an object", {
+          provider: 'msg91',
+          details: { field: 'variables' }
+        });
+      }
+    }
+
+    const activeIntegratedNumber = integratedNumber ? String(integratedNumber).trim() : this.#integratedNumber;
+
+    const recipientsArray = Array.isArray(normalizedRecipients)
+      ? normalizedRecipients
+      : [normalizedRecipients];
+
+    // Format components from variables if not explicitly provided
+    let formattedComponents = components;
+    if (!formattedComponents && variables && Object.keys(variables).length > 0) {
+      formattedComponents = {};
+      for (const [key, val] of Object.entries(variables)) {
+        if (val !== null && typeof val === 'object' && val.type && val.value !== undefined) {
+          formattedComponents[key] = val;
+        } else {
+          formattedComponents[key] = {
+            type: 'text',
+            value: String(val ?? '')
+          };
+        }
+      }
+    }
+
+    const toAndComponents = recipientsArray.map((mobileNum) => ({
+      to: [mobileNum],
+      components: formattedComponents || {}
+    }));
+
+    const languageObj = typeof language === 'string'
+      ? { code: language.trim(), policy: 'deterministic' }
+      : language;
+
+    const templatePayload = {
+      name: templateIdentifier,
+      language: languageObj,
+      ...(namespace ? { namespace } : {}),
+      to_and_components: toAndComponents
+    };
+
+    const payload = {
+      ...(activeIntegratedNumber ? { integrated_number: activeIntegratedNumber } : {}),
+      content_type: 'template',
+      payload: {
+        type: 'template',
+        template: templatePayload
+      },
+      ...extraOptions
+    };
+
+    const url = `${this.#baseUrl}/api/v5/whatsapp/whatsapp-outbound-message/bulk/`;
+
+    try {
+      const response = await this.#fetch(url, {
+        method: 'POST',
+        headers: {
+          authkey: this.#authKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const json = await this.#parseJsonResponse(response);
+
+      if (!response.ok || json?.type === 'error' || json?.status === 'error') {
+        const errorMsg = json?.message || `Failed to send WhatsApp message (HTTP ${response.status})`;
+        throw new IntegrationError(errorMsg, {
+          code: this.#mapStatusCodeToErrorCode(response.status),
+          statusCode: response.status || 502,
+          provider: 'msg91',
+          details: json?.type ? { type: json.type } : null
+        });
+      }
+
+      return this.normalizeSuccess({
+        requestId: json?.request_id || json?.message_id || json?.data?.request_id || null,
+        type: json?.type || 'success',
+        message: json?.message || 'WhatsApp message processed successfully',
+        recipients: normalizedRecipients,
+        raw: json
+      });
+    } catch (error) {
+      throw this.#handleProviderError(error, 'Failed to send WhatsApp message');
     }
   }
 

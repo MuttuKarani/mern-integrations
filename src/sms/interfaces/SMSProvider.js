@@ -69,6 +69,19 @@ export class SMSProvider {
   }
 
   /**
+   * Sends WhatsApp messages or templates.
+   *
+   * @param {Object} params - WhatsApp parameters.
+   * @returns {Promise<{success: boolean, provider: string, data: Object}>}
+   * @abstract
+   */
+  async sendWhatsApp(params) {
+    throw new IntegrationError(`sendWhatsApp() must be implemented by provider '${this.name}'`, {
+      provider: this.name
+    });
+  }
+
+  /**
    * Formats a normalized success response.
    *
    * @param {Object} data - Result payload.

@@ -366,11 +366,62 @@ const flowResponse = await sms.sendSMS({
 
 ---
 
-### Important Indian DLT & Template Considerations
+### Sending WhatsApp (`sendWhatsApp`)
 
-> **REGULATORY NOTICE:** In India, commercial and transactional SMS delivery is governed by Telecom Commercial Communications Customer Preference Regulations (TCCCPR / TRAI).
-> - All sender IDs (Headers) and SMS/OTP templates must be registered and approved on a DLT platform (e.g. Jio, Airtel, Vodafone, Smartping) and linked in your MSG91 Control Panel.
-> - The `mern-integrations` library handles API packaging and validation, but cannot bypass DLT compliance, regulatory whitelisting, or telecommunication restrictions. Ensure appropriate template IDs and Sender IDs are configured in your MSG91 account.
+Sends template-based WhatsApp messages via MSG91's WhatsApp Outbound Message API (`POST /api/v5/whatsapp/whatsapp-outbound-message/bulk/`).
+
+```javascript
+// Single recipient with template variables
+const waResponse = await sms.sendWhatsApp({
+  to: '+91 99999 99999',
+  templateId: 'order_status_update',
+  integratedNumber: '919876543210', // Optional if configured on provider
+  variables: {
+    body_1: 'John Doe',
+    body_2: 'ORDER-1002'
+  }
+});
+
+// Multiple recipients with custom language and namespace
+const waBulkResponse = await sms.sendWhatsApp({
+  to: ['919999999999', '918888888888'],
+  templateId: 'security_alert_v1',
+  language: 'en',
+  namespace: 'custom_template_namespace',
+  components: {
+    header_1: { type: 'text', value: 'Security Alert' },
+    body_1: { type: 'text', value: '456789' }
+  }
+});
+```
+
+#### Normalized Response:
+```json
+{
+  "success": true,
+  "provider": "msg91",
+  "data": {
+    "requestId": "wa_req_998811",
+    "type": "success",
+    "message": "WhatsApp template message sent successfully",
+    "recipients": "919999999999",
+    "raw": { /* Original MSG91 JSON response */ }
+  }
+}
+```
+
+---
+
+### Important Regulatory, DLT & WhatsApp Template Requirements
+
+> **TRAI DLT Notice (SMS/OTP in India):**
+> - Commercial SMS and OTPs in India require DLT registration (TRAI / TCCCPR) with Principal Entity ID, approved Headers (Sender IDs), and DLT Content Template IDs.
+>
+> **Meta WhatsApp Template Requirements:**
+> - Outbound business-initiated WhatsApp messages **must use pre-approved Meta WhatsApp templates** synced to your MSG91 Control Panel.
+> - Free-form or arbitrary text cannot initiate new 24-hour customer conversation windows without an approved template.
+> - Ensure your WhatsApp Business Number is verified and integrated in your MSG91 account (`integrated_number`).
+
 
 ---
 
