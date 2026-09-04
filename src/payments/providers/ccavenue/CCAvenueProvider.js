@@ -224,6 +224,19 @@ export class CCAvenueProvider extends PaymentProvider {
   }
 
   /**
+   * Decrypts and parses a CCAvenue encrypted query response string into a key-value object using the configured working key.
+   *
+   * @param {string} encResp - Encrypted hex response string.
+   * @returns {Object} Decrypted key-value parameters.
+   * @throws {ValidationError} If encResp is missing or invalid.
+   * @throws {IntegrationError} If decryption fails.
+   */
+  parseEncryptedResponse(encResp) {
+    validateRequiredString(encResp, 'encResp', 'ccavenue');
+    return parseEncryptedResponse(encResp, this.#workingKey);
+  }
+
+  /**
    * Programmatic refunds are not supported in this CCAvenue integration.
    *
    * @throws {IntegrationError}
