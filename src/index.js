@@ -24,4 +24,5 @@ export { createSMSProvider } from './sms/factories/SMSFactory.js';
 // Storage module
 export { StorageProvider } from './storage/interfaces/StorageProvider.js';
 export { CloudinaryProvider } from './storage/providers/cloudinary/CloudinaryProvider.js';
+export { S3Provider } from './storage/providers/s3/S3Provider.js';
 export { createStorageProvider } from './storage/factories/StorageFactory.js';
