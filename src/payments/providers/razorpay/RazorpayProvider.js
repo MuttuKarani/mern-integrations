@@ -26,25 +26,36 @@ export class RazorpayProvider extends PaymentProvider {
   #client;
 
   /**
-   * @param {Object} config
-   * @param {string} config.keyId - Razorpay Key ID (API Key).
-   * @param {string} config.keySecret - Razorpay Key Secret.
+   * @param {Object} [config={}]
+   * @param {string} [config.keyId] - Razorpay Key ID (API Key).
+   * @param {string} [config.keySecret] - Razorpay Key Secret.
    * @param {string} [config.webhookSecret] - Optional Razorpay Webhook Secret.
    * @param {Object} [config.client] - Optional pre-configured Razorpay SDK instance (useful for mocking/testing).
    * @throws {ValidationError} If required credentials are missing.
    */
-  constructor({ keyId, keySecret, webhookSecret = null, client = null } = {}) {
+  constructor(config = {}) {
     super('razorpay');
 
-    validateRequiredString(keyId, 'keyId', 'razorpay');
-    validateRequiredString(keySecret, 'keySecret', 'razorpay');
+    if (!config || typeof config !== 'object' || Array.isArray(config)) {
+      throw new ValidationError("Config must be a valid object for 'razorpay' provider", {
+        provider: 'razorpay',
+        details: { field: 'config' }
+      });
+    }
+
+    const { keyId, keySecret, webhookSecret = null, client = null } = config;
+
+    if (!client) {
+      validateRequiredString(keyId, 'keyId', 'razorpay');
+      validateRequiredString(keySecret, 'keySecret', 'razorpay');
+    }
 
     if (webhookSecret !== null && webhookSecret !== undefined) {
       validateRequiredString(webhookSecret, 'webhookSecret', 'razorpay');
     }
 
-    this.#keyId = keyId;
-    this.#keySecret = keySecret;
+    this.#keyId = keyId || null;
+    this.#keySecret = keySecret || null;
     this.#webhookSecret = webhookSecret || null;
 
     if (client) {
@@ -250,7 +261,15 @@ export class RazorpayProvider extends PaymentProvider {
       return error;
     }
 
-    const message = error?.error?.description || error?.message || fallbackMessage;
+    let message = error?.error?.description || error?.message || fallbackMessage;
+
+    if (this.#keySecret) {
+      message = message.replaceAll(this.#keySecret, '[REDACTED]');
+    }
+    if (this.#webhookSecret) {
+      message = message.replaceAll(this.#webhookSecret, '[REDACTED]');
+    }
+
     const code = error?.error?.code || error?.code || 'RAZORPAY_API_ERROR';
     const statusCode = error?.statusCode || error?.status || 500;
     const details = error?.error?.field ? { field: error.error.field } : (error?.error || null);

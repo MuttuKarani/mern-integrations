@@ -132,7 +132,7 @@ describe('StorageProvider & Cloudinary Integration', () => {
 
     test('should throw IntegrationError for unsupported storage providers', () => {
       expect(() =>
-        createStorageProvider({ provider: 'aws-s3', cloudName: 'test', apiKey: 'k', apiSecret: 's' })
+        createStorageProvider({ provider: 'unsupported_storage', cloudName: 'test', apiKey: 'k', apiSecret: 's' })
       ).toThrow(IntegrationError);
 
       try {
@@ -146,6 +146,11 @@ describe('StorageProvider & Cloudinary Integration', () => {
   });
 
   describe('CloudinaryProvider Constructor', () => {
+    test('should throw ValidationError if config is not a valid object', () => {
+      expect(() => new CloudinaryProvider(null)).toThrow(ValidationError);
+      expect(() => new CloudinaryProvider('invalid')).toThrow(ValidationError);
+    });
+
     test('should throw ValidationError if cloudName is missing, empty, or whitespace', () => {
       expect(() => new CloudinaryProvider({ apiKey: mockApiKey, apiSecret: mockApiSecret })).toThrow(ValidationError);
       expect(() => new CloudinaryProvider({ cloudName: '', apiKey: mockApiKey, apiSecret: mockApiSecret })).toThrow(ValidationError);
@@ -172,7 +177,23 @@ describe('StorageProvider & Cloudinary Integration', () => {
       expect(p).toBeInstanceOf(CloudinaryProvider);
       expect(p.apiSecret).toBeUndefined();
       expect(p['#apiSecret']).toBeUndefined();
+      expect(Object.keys(p)).not.toContain('apiSecret');
       expect(JSON.stringify(p)).not.toContain(mockApiSecret);
+    });
+
+    test('should redact apiSecret in thrown error messages', async () => {
+      mockClient.uploader.upload.mockRejectedValueOnce(
+        new Error(`Upload failed with secret ${mockApiSecret}`)
+      );
+
+      try {
+        await provider.upload({ file: './sample.jpg' });
+        expect(true).toBe(false);
+      } catch (err) {
+        expect(err).toBeInstanceOf(IntegrationError);
+        expect(err.message).not.toContain(mockApiSecret);
+        expect(err.message).toContain('[REDACTED]');
+      }
     });
   });
 

@@ -97,6 +97,11 @@ describe('CCAvenueProvider & AES-128-CBC Cryptography', () => {
   });
 
   describe('Constructor & Credential Validation', () => {
+    test('should throw ValidationError if config is not a valid object', () => {
+      expect(() => new CCAvenueProvider(null)).toThrow(ValidationError);
+      expect(() => new CCAvenueProvider('invalid')).toThrow(ValidationError);
+    });
+
     test('should throw ValidationError if merchantId is missing or empty', () => {
       expect(
         () =>
@@ -138,7 +143,22 @@ describe('CCAvenueProvider & AES-128-CBC Cryptography', () => {
         testMode: false
       });
 
-      expect(prodProvider.name).toBe('ccavenue');
+      expect(prodProvider).toBeInstanceOf(CCAvenueProvider);
+    });
+
+    test('should not expose workingKey or sensitive properties in Object.keys() or JSON.stringify()', () => {
+      const testProvider = new CCAvenueProvider({
+        merchantId: mockMerchantId,
+        accessCode: mockAccessCode,
+        workingKey: mockWorkingKey
+      });
+
+      const keys = Object.keys(testProvider);
+      expect(keys).not.toContain('workingKey');
+      expect(keys).not.toContain('#workingKey');
+
+      const serialized = JSON.stringify(testProvider);
+      expect(serialized).not.toContain(mockWorkingKey);
     });
   });
 

@@ -64,24 +64,40 @@ describe('S3Provider & AWS S3 Storage Integration', () => {
   });
 
   describe('StorageProvider / Factory for S3', () => {
-    test('should create S3Provider when provider is "s3"', () => {
-      const p = createStorageProvider({
+    test('should create S3Provider when provider is "s3", "aws-s3", or "awss3"', () => {
+      const p1 = createStorageProvider({
         provider: 's3',
         accessKeyId: mockAccessKeyId,
         secretAccessKey: mockSecretAccessKey,
         region: mockRegion,
         bucket: mockBucket
       });
+      const p2 = createStorageProvider({
+        provider: 'aws-s3',
+        accessKeyId: mockAccessKeyId,
+        secretAccessKey: mockSecretAccessKey,
+        region: mockRegion,
+        bucket: mockBucket
+      });
+      const p3 = createStorageProvider({
+        provider: 'awss3',
+        accessKeyId: mockAccessKeyId,
+        secretAccessKey: mockSecretAccessKey,
+        region: mockRegion,
+        bucket: mockBucket
+      });
 
-      expect(p).toBeInstanceOf(S3Provider);
-      expect(p).toBeInstanceOf(StorageProvider);
-      expect(p.name).toBe('s3');
+      expect(p1).toBeInstanceOf(S3Provider);
+      expect(p1).toBeInstanceOf(StorageProvider);
+      expect(p1.name).toBe('s3');
+      expect(p2).toBeInstanceOf(S3Provider);
+      expect(p3).toBeInstanceOf(S3Provider);
     });
 
     test('provider matching should be case-insensitive and trim whitespace', () => {
       const p1 = createStorageProvider({ provider: 'S3', accessKeyId: mockAccessKeyId, secretAccessKey: mockSecretAccessKey, region: mockRegion, bucket: mockBucket });
       const p2 = createStorageProvider({ provider: '  s3  ', accessKeyId: mockAccessKeyId, secretAccessKey: mockSecretAccessKey, region: mockRegion, bucket: mockBucket });
-      const p3 = createStorageProvider({ provider: 'S3', accessKeyId: mockAccessKeyId, secretAccessKey: mockSecretAccessKey, region: mockRegion, bucket: mockBucket });
+      const p3 = createStorageProvider({ provider: '  AWS-S3  ', accessKeyId: mockAccessKeyId, secretAccessKey: mockSecretAccessKey, region: mockRegion, bucket: mockBucket });
 
       expect(p1).toBeInstanceOf(S3Provider);
       expect(p2).toBeInstanceOf(S3Provider);
@@ -102,6 +118,11 @@ describe('S3Provider & AWS S3 Storage Integration', () => {
   });
 
   describe('Constructor & Credentials Validation', () => {
+    test('should throw ValidationError if config is not a valid object', () => {
+      expect(() => new S3Provider(null)).toThrow(ValidationError);
+      expect(() => new S3Provider('invalid')).toThrow(ValidationError);
+    });
+
     test('should throw ValidationError if accessKeyId is missing or empty', () => {
       expect(() => new S3Provider({ secretAccessKey: mockSecretAccessKey, region: mockRegion, bucket: mockBucket })).toThrow(ValidationError);
       expect(() => new S3Provider({ accessKeyId: '', secretAccessKey: mockSecretAccessKey, region: mockRegion, bucket: mockBucket })).toThrow(ValidationError);

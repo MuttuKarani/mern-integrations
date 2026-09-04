@@ -29,15 +29,24 @@ export class MSG91Provider extends SMSProvider {
   #fetch;
 
   /**
-   * @param {Object} config
+   * @param {Object} [config={}]
    * @param {string} config.authKey - MSG91 authentication key.
    * @param {string} [config.baseUrl='https://control.msg91.com'] - Base URL for MSG91 APIs.
    * @param {string} [config.integratedNumber] - Verified WhatsApp integrated number (with country code).
    * @param {typeof fetch} [config.fetch] - Custom fetch implementation (useful for testing/mocking).
    * @throws {ValidationError} If authKey is missing or not a non-empty string.
    */
-  constructor({ authKey, baseUrl = 'https://control.msg91.com', integratedNumber = null, fetch: customFetch = null } = {}) {
+  constructor(config = {}) {
     super('msg91');
+
+    if (!config || typeof config !== 'object' || Array.isArray(config)) {
+      throw new ValidationError("Config must be a valid object for 'msg91' provider", {
+        provider: 'msg91',
+        details: { field: 'config' }
+      });
+    }
+
+    const { authKey, baseUrl = 'https://control.msg91.com', integratedNumber = null, fetch: customFetch = null } = config;
 
     validateRequiredString(authKey, 'authKey', 'msg91');
 
@@ -526,7 +535,12 @@ export class MSG91Provider extends SMSProvider {
       return error;
     }
 
-    return new IntegrationError(error?.message || fallbackMessage, {
+    let message = error?.message || fallbackMessage;
+    if (this.#authKey) {
+      message = message.replaceAll(this.#authKey, '[REDACTED]');
+    }
+
+    return new IntegrationError(message, {
       code: 'PROVIDER_ERROR',
       statusCode: 502,
       provider: 'msg91',

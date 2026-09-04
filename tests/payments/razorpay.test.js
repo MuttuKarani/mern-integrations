@@ -92,6 +92,11 @@ describe('RazorpayProvider & Payment Architecture', () => {
   });
 
   describe('RazorpayProvider Constructor & Credentials Validation', () => {
+    test('should throw ValidationError if config is not a valid object', () => {
+      expect(() => new RazorpayProvider(null)).toThrow(ValidationError);
+      expect(() => new RazorpayProvider('invalid')).toThrow(ValidationError);
+    });
+
     test('should throw ValidationError if keyId is missing or empty', () => {
       expect(() => new RazorpayProvider({ keyId: '', keySecret: mockKeySecret })).toThrow(
         ValidationError
@@ -115,6 +120,36 @@ describe('RazorpayProvider & Payment Architecture', () => {
             webhookSecret: '   '
           })
       ).toThrow(ValidationError);
+    });
+
+    test('should not expose sensitive credentials in Object.keys() or JSON.stringify()', () => {
+      const keys = Object.keys(provider);
+      expect(keys).not.toContain('keySecret');
+      expect(keys).not.toContain('#keySecret');
+      expect(keys).not.toContain('webhookSecret');
+      expect(keys).not.toContain('#webhookSecret');
+
+      const serialized = JSON.stringify(provider);
+      expect(serialized).not.toContain(mockKeySecret);
+      expect(serialized).not.toContain(mockWebhookSecret);
+    });
+
+    test('should redact keySecret and webhookSecret in error messages', async () => {
+      mockClient.orders.create.mockRejectedValueOnce({
+        error: {
+          description: `Internal server failure with key ${mockKeySecret} and webhook ${mockWebhookSecret}`
+        }
+      });
+
+      try {
+        await provider.createOrder({ amount: 1000, currency: 'INR' });
+        expect(true).toBe(false);
+      } catch (err) {
+        expect(err).toBeInstanceOf(IntegrationError);
+        expect(err.message).not.toContain(mockKeySecret);
+        expect(err.message).not.toContain(mockWebhookSecret);
+        expect(err.message).toContain('[REDACTED]');
+      }
     });
   });
 

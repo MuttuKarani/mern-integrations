@@ -45,7 +45,7 @@ export class S3Provider extends StorageProvider {
   #uploadFactory;
 
   /**
-   * @param {Object} config
+   * @param {Object} [config={}]
    * @param {string} config.accessKeyId - AWS Access Key ID.
    * @param {string} config.secretAccessKey - AWS Secret Access Key.
    * @param {string} config.region - AWS Region (e.g. 'ap-south-1', 'us-east-1').
@@ -57,18 +57,27 @@ export class S3Provider extends StorageProvider {
    * @param {typeof Upload} [config.uploadFactory] - Custom Upload class for testing.
    * @throws {ValidationError} If any required configuration parameter is missing or invalid.
    */
-  constructor({
-    accessKeyId,
-    secretAccessKey,
-    region,
-    bucket,
-    endpoint = null,
-    forcePathStyle = false,
-    client = null,
-    presigner = null,
-    uploadFactory = null
-  } = {}) {
+  constructor(config = {}) {
     super('s3');
+
+    if (!config || typeof config !== 'object' || Array.isArray(config)) {
+      throw new ValidationError("Config must be a valid object for 's3' provider", {
+        provider: 's3',
+        details: { field: 'config' }
+      });
+    }
+
+    const {
+      accessKeyId,
+      secretAccessKey,
+      region,
+      bucket,
+      endpoint = null,
+      forcePathStyle = false,
+      client = null,
+      presigner = null,
+      uploadFactory = null
+    } = config;
 
     validateRequiredString(accessKeyId, 'accessKeyId', 's3');
     validateRequiredString(secretAccessKey, 'secretAccessKey', 's3');
@@ -472,7 +481,14 @@ export class S3Provider extends StorageProvider {
 
     const errorName = error?.name || error?.Code || '';
     const statusCode = error?.$metadata?.httpStatusCode || error?.statusCode || 500;
-    const message = error?.message || fallbackMessage;
+    let message = error?.message || fallbackMessage;
+
+    if (this.#secretAccessKey) {
+      message = message.replaceAll(this.#secretAccessKey, '[REDACTED]');
+    }
+    if (this.#accessKeyId) {
+      message = message.replaceAll(this.#accessKeyId, '[REDACTED]');
+    }
 
     let code = 'PROVIDER_ERROR';
     if (

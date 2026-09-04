@@ -34,6 +34,8 @@ export function createStorageProvider(config) {
       return new CloudinaryProvider(config);
 
     case 's3':
+    case 'aws-s3':
+    case 'awss3':
       return new S3Provider(config);
 
     default:

@@ -26,7 +26,7 @@ export class MessageBirdProvider extends SMSProvider {
   #fetch;
 
   /**
-   * @param {Object} config
+   * @param {Object} [config={}]
    * @param {string} config.apiKey - MessageBird API access key.
    * @param {string} [config.channelId] - Default WhatsApp Channel ID.
    * @param {string} [config.namespace] - Default WhatsApp Template namespace ID.
@@ -34,14 +34,23 @@ export class MessageBirdProvider extends SMSProvider {
    * @param {typeof fetch} [config.fetch] - Custom fetch implementation for testing.
    * @throws {ValidationError} If apiKey is missing or not a non-empty string.
    */
-  constructor({
-    apiKey,
-    channelId = null,
-    namespace = null,
-    baseUrl = 'https://conversations.messagebird.com',
-    fetch: customFetch = null
-  } = {}) {
+  constructor(config = {}) {
     super('messagebird');
+
+    if (!config || typeof config !== 'object' || Array.isArray(config)) {
+      throw new ValidationError("Config must be a valid object for 'messagebird' provider", {
+        provider: 'messagebird',
+        details: { field: 'config' }
+      });
+    }
+
+    const {
+      apiKey,
+      channelId = null,
+      namespace = null,
+      baseUrl = 'https://conversations.messagebird.com',
+      fetch: customFetch = null
+    } = config;
 
     validateRequiredString(apiKey, 'apiKey', 'messagebird');
 
@@ -352,7 +361,12 @@ export class MessageBirdProvider extends SMSProvider {
       return error;
     }
 
-    return new IntegrationError(error?.message || fallbackMessage, {
+    let message = error?.message || fallbackMessage;
+    if (this.#apiKey) {
+      message = message.replaceAll(this.#apiKey, '[REDACTED]');
+    }
+
+    return new IntegrationError(message, {
       code: 'PROVIDER_ERROR',
       statusCode: 502,
       provider: 'messagebird',
