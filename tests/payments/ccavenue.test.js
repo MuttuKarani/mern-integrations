@@ -65,6 +65,9 @@ describe('CCAvenueProvider & AES-128-CBC Cryptography', () => {
       expect(parsed.payment_mode).toBe('Net Banking');
       expect(parsed.amount).toBe('10.00');
       expect(parsed.currency).toBe('INR');
+
+      const instanceParsed = provider.parseEncryptedResponse(encResp);
+      expect(instanceParsed).toEqual(parsed);
     });
 
     test('should reject invalid hex strings with ValidationError', () => {

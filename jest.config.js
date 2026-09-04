@@ -1,7 +1,8 @@
 export default {
   testEnvironment: 'node',
   transform: {},
-  testMatch: ['**/tests/**/*.test.js'],
+  testMatch: ['<rootDir>/tests/**/*.test.js'],
+  testPathIgnorePatterns: ['/node_modules/', '/consumer-test/'],
   verbose: true,
   clearMocks: true,
   collectCoverageFrom: [

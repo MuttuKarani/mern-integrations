@@ -1,0 +1,12 @@
+{
+  "name": "consumer-test",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "mern-integrations": "file:../mern-integrations-1.0.0.tgz"
+  }
+}
