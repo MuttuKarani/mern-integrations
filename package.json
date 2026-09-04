@@ -13,7 +13,8 @@
     "example:resend": "node examples/resend-example.js",
     "example:msg91": "node examples/msg91-example.js",
     "example:messagebird": "node examples/messagebird-example.js",
-    "example:cloudinary": "node examples/cloudinary-example.js"
+    "example:cloudinary": "node examples/cloudinary-example.js",
+    "example:s3": "node examples/s3-example.js"
   },
   "keywords": [
     "mern",
@@ -24,6 +25,9 @@
   "author": "",
   "license": "UNLICENSED",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1126.0",
+    "@aws-sdk/lib-storage": "^3.1126.0",
+    "@aws-sdk/s3-request-presigner": "^3.1126.0",
     "cloudinary": "^2.11.0",
     "dotenv": "^16.4.7",
     "razorpay": "^2.9.5",

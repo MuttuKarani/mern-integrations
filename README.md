@@ -218,11 +218,21 @@ const messagebird = createSMSProvider({
 import { createStorageProvider } from 'mern-integrations';
 
 // Cloudinary Provider
-const storage = createStorageProvider({
+const cloudinaryStorage = createStorageProvider({
   provider: 'cloudinary',
   cloudName: process.env.CLOUDINARY_CLOUD_NAME,
   apiKey: process.env.CLOUDINARY_API_KEY,
   apiSecret: process.env.CLOUDINARY_API_SECRET
+});
+
+// AWS S3 Provider
+const s3Storage = createStorageProvider({
+  provider: 's3',
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
+  bucket: process.env.AWS_S3_BUCKET,
+  endpoint: process.env.AWS_S3_ENDPOINT // Optional for MinIO / R2
 });
 ```
 
@@ -603,6 +613,128 @@ const deleteResult = await storage.delete({
 
 ---
 
+### AWS S3 Integration
+
+`S3Provider` implements object storage using the official AWS SDK v3 (`@aws-sdk/client-s3`, `@aws-sdk/lib-storage`, `@aws-sdk/s3-request-presigner`). It supports standard AWS S3 buckets as well as S3-compatible cloud storage providers (such as MinIO, Cloudflare R2, Wasabi, or DigitalOcean Spaces).
+
+#### Environment Variables
+
+```env
+AWS_ACCESS_KEY_ID=your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+AWS_REGION=ap-south-1
+AWS_S3_BUCKET=my-app-uploads
+AWS_S3_ENDPOINT= # Optional for MinIO / Cloudflare R2
+AWS_S3_FORCE_PATH_STYLE=false # Set to true for local MinIO / path-style S3
+```
+
+#### Provider Initialization
+
+```javascript
+import { createStorageProvider } from 'mern-integrations';
+
+const s3 = createStorageProvider({
+  provider: 's3',
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
+  bucket: process.env.AWS_S3_BUCKET
+});
+```
+
+#### Local File Upload (`upload`)
+
+Uploads a local file to S3 with content type inference, metadata tagging, cache control, and folder prefixes.
+
+```javascript
+const fileResult = await s3.upload({
+  file: './uploads/report.pdf',
+  folder: 'reports/2026',
+  contentType: 'application/pdf',
+  metadata: { author: 'Finance Department' },
+  cacheControl: 'max-age=3600'
+});
+```
+
+#### Normalized S3 Response:
+```json
+{
+  "success": true,
+  "provider": "s3",
+  "data": {
+    "key": "reports/2026/report.pdf",
+    "bucket": "my-app-uploads",
+    "url": "https://my-app-uploads.s3.ap-south-1.amazonaws.com/reports/2026/report.pdf",
+    "etag": "d41d8cd98f00b204e9800998ecf8427e",
+    "versionId": null,
+    "contentType": "application/pdf",
+    "raw": { /* Upstream PutObjectCommand response */ }
+  }
+}
+```
+
+#### In-Memory Buffer Upload (`uploadBuffer`)
+
+Uploads memory buffers without writing temporary files to disk.
+
+```javascript
+const bufferResult = await s3.uploadBuffer({
+  buffer: req.file.buffer,
+  key: 'user_avatar.png',
+  folder: 'avatars',
+  contentType: 'image/png'
+});
+```
+
+#### Multipart Stream Upload (`uploadStream`)
+
+Uploads large files via multipart streams using `@aws-sdk/lib-storage` without loading the entire stream into memory.
+
+```javascript
+import fs from 'fs';
+
+const stream = fs.createReadStream('./large-video.mp4');
+const streamResult = await s3.uploadStream({
+  stream,
+  key: 'demo.mp4',
+  folder: 'videos',
+  contentType: 'video/mp4'
+});
+```
+
+#### URL Generation (`getUrl`)
+
+Supports both standard public object URLs and time-limited pre-signed temporary URLs.
+
+```javascript
+// 1. Standard Public URL
+const publicUrl = await s3.getUrl({
+  key: 'reports/2026/report.pdf',
+  signed: false
+});
+
+// 2. Pre-signed Temporary URL (Expires in 30 minutes)
+const signedUrl = await s3.getUrl({
+  key: 'reports/2026/report.pdf',
+  signed: true,
+  expiresIn: 1800
+});
+
+console.log(signedUrl.data.url);
+```
+
+#### Deleting Objects (`delete`)
+
+Deletes an object from the S3 bucket by key.
+
+```javascript
+const deleteResult = await s3.delete({
+  key: 'reports/2026/report.pdf'
+});
+```
+
+---
+
 ## 10. Error Handling & Response Normalization
 
 All public methods throw structured errors inheriting from `IntegrationError` or `ValidationError`:
@@ -645,6 +777,9 @@ npm run example:messagebird
 
 # Run Cloudinary storage example
 npm run example:cloudinary
+
+# Run AWS S3 storage example
+npm run example:s3
 ```
 
 ---
@@ -654,7 +789,7 @@ npm run example:cloudinary
 The test suite uses **Jest** with ES Module support. All gateway API calls and cryptographic flows are tested using mocks and verified reference vectors.
 
 ```bash
-# Run all tests (Razorpay + CCAvenue + Resend + MSG91 + MessageBird + Cloudinary)
+# Run all tests (Razorpay + CCAvenue + Resend + MSG91 + MessageBird + Cloudinary + S3)
 npm test
 
 # Run tests in watch mode
