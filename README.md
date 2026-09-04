@@ -165,19 +165,86 @@ mern-integrations/
 └── jest.config.js
 ```
 
----
-
 ## 3. Installation & Setup
 
 ### Requirements
 - **Node.js**: `>= 18.0.0` (ES Modules required)
 - **NPM**: `>= 9.0.0`
 
-Install dependencies in the project root:
+### Install Only What You Need
 
+`mern-integrations` is engineered with an **optional peer dependencies and safe ESM lazy-loading** architecture. You only install the external provider SDKs you actually use in your application. Unrelated provider SDKs are never required or loaded at import time.
+
+#### Provider to SDK Dependency Mapping
+
+| Provider Domain | Provider Identifier | Required External SDK Package(s) | Notes |
+|---|---|---|---|
+| **Payments** | `razorpay` | `razorpay` | Optional peer dependency |
+| | `stripe` | `stripe` | Optional peer dependency |
+| | `ccavenue` | *None* | Uses Node.js built-in `node:crypto` |
+| **Email** | `resend` | `resend` | Optional peer dependency |
+| | `nodemailer` | `nodemailer` | Optional peer dependency |
+| | `ses` / `amazon-ses` | `@aws-sdk/client-ses` | Optional peer dependency |
+| **SMS** | `msg91` | *None* | Uses Node.js native `fetch` |
+| | `messagebird` | *None* | Uses Node.js native `fetch` |
+| **Storage** | `cloudinary` | `cloudinary` | Optional peer dependency |
+| | `s3` / `aws-s3` | `@aws-sdk/client-s3`<br>`@aws-sdk/lib-storage`<br>`@aws-sdk/s3-request-presigner` | Optional peer dependencies |
+
+#### Installation Examples
+
+##### 1. Razorpay Only
 ```bash
-npm install
+npm install mern-integrations razorpay
 ```
+
+##### 2. Resend Only
+```bash
+npm install mern-integrations resend
+```
+
+##### 3. Razorpay + Resend
+```bash
+npm install mern-integrations razorpay resend
+```
+
+##### 4. Stripe + Nodemailer
+```bash
+npm install mern-integrations stripe nodemailer
+```
+
+##### 5. Amazon SES Email
+```bash
+npm install mern-integrations @aws-sdk/client-ses
+```
+
+##### 6. AWS S3 Storage
+```bash
+npm install mern-integrations @aws-sdk/client-s3 @aws-sdk/lib-storage @aws-sdk/s3-request-presigner
+```
+
+##### 7. Cloudinary Media Storage
+```bash
+npm install mern-integrations cloudinary
+```
+
+##### 8. Zero-External-Dependency Stack (CCAvenue + MSG91)
+```bash
+npm install mern-integrations
+```
+
+#### Safe Lazy Loading & Missing Dependency Error Contract
+
+- **Root & Submodule Import Isolation**: Importing `mern-integrations` or subpaths (`mern-integrations/payments`, `mern-integrations/email`, etc.) never attempts to evaluate external SDKs until a provider method is invoked.
+- **Unsupported Provider vs Missing SDK**:
+  - **Unsupported Provider** (e.g. `provider: 'paypal'`): Throws `IntegrationError` with `code: 'UNSUPPORTED_PROVIDER'`, HTTP status `400`.
+  - **Supported Provider with Missing SDK** (e.g. `provider: 'stripe'` without `npm install stripe`): Throws a clean `IntegrationError` with:
+    - `code: 'MISSING_PROVIDER_DEPENDENCY'`
+    - `statusCode: 500`
+    - `provider: 'stripe'`
+    - Human-readable message: `"The optional dependency 'stripe' is required to use the 'stripe' provider. Please install it with: npm install stripe"`
+    - No raw Node.js `MODULE_NOT_FOUND` stack trace leakage.
+
+---
 
 ### Module Import Conventions
 

@@ -1,4 +1,3 @@
-import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import { EmailProvider } from '../../interfaces/EmailProvider.js';
 import { IntegrationError } from '../../../core/errors/IntegrationError.js';
 import { ValidationError } from '../../../core/errors/ValidationError.js';
@@ -6,13 +5,17 @@ import {
   validateRequiredString,
   validateEmailRecipients
 } from '../../../core/utils/validators.js';
+import { loadOptionalDependency } from '../../../core/utils/dependencies.js';
 
 /**
  * Amazon Simple Email Service (SES) Provider implementation using AWS SDK v3.
  */
 export class SESProvider extends EmailProvider {
-  /** @type {SESClient} */
+  /** @type {any} */
   #client;
+
+  /** @type {any} */
+  #SendEmailCommand;
 
   /** @type {string|null} */
   #accessKeyId;
@@ -26,13 +29,18 @@ export class SESProvider extends EmailProvider {
   /** @type {string|null} */
   #configurationSetName;
 
+  /** @type {Function|null} */
+  #loader;
+
   /**
    * @param {Object} config
    * @param {string} [config.accessKeyId] - AWS Access Key ID.
    * @param {string} [config.secretAccessKey] - AWS Secret Access Key.
    * @param {string} [config.region] - AWS Region (e.g. 'us-east-1', 'eu-west-1').
    * @param {string} [config.configurationSetName] - Default Amazon SES Configuration Set name.
-   * @param {SESClient} [config.client] - Pre-instantiated SESClient instance (optional, for testing).
+   * @param {any} [config.client] - Pre-instantiated SESClient instance (optional, for testing).
+   * @param {any} [config.SendEmailCommand] - Custom SendEmailCommand constructor (optional, for testing).
+   * @param {Function} [config.loader] - Optional custom import function for testing.
    * @throws {ValidationError} If required credentials or region are missing when client is not supplied.
    */
   constructor(config = {}) {
@@ -50,7 +58,9 @@ export class SESProvider extends EmailProvider {
       secretAccessKey,
       region,
       configurationSetName,
-      client
+      client = null,
+      SendEmailCommand = null,
+      loader = null
     } = config;
 
     if (configurationSetName !== undefined && configurationSetName !== null) {
@@ -60,29 +70,47 @@ export class SESProvider extends EmailProvider {
       this.#configurationSetName = null;
     }
 
-    if (client) {
-      this.#client = client;
-      this.#accessKeyId = accessKeyId ? accessKeyId.trim() : null;
-      this.#secretAccessKey = secretAccessKey ? secretAccessKey.trim() : null;
-      this.#region = region ? region.trim() : null;
-      return;
+    if (!client) {
+      validateRequiredString(accessKeyId, 'accessKeyId', 'ses');
+      validateRequiredString(secretAccessKey, 'secretAccessKey', 'ses');
+      validateRequiredString(region, 'region', 'ses');
     }
 
-    validateRequiredString(accessKeyId, 'accessKeyId', 'ses');
-    validateRequiredString(secretAccessKey, 'secretAccessKey', 'ses');
-    validateRequiredString(region, 'region', 'ses');
+    this.#accessKeyId = accessKeyId ? accessKeyId.trim() : null;
+    this.#secretAccessKey = secretAccessKey ? secretAccessKey.trim() : null;
+    this.#region = region ? region.trim() : null;
+    this.#client = client || null;
+    this.#SendEmailCommand = SendEmailCommand || null;
+    this.#loader = loader || null;
+  }
 
-    this.#accessKeyId = accessKeyId.trim();
-    this.#secretAccessKey = secretAccessKey.trim();
-    this.#region = region.trim();
-
-    this.#client = new SESClient({
-      region: this.#region,
-      credentials: {
-        accessKeyId: this.#accessKeyId,
-        secretAccessKey: this.#secretAccessKey
+  /**
+   * Lazily loads the AWS SES SDK client and command classes if not already initialized.
+   *
+   * @returns {Promise<{client: any, SendEmailCommand: any}>}
+   * @private
+   */
+  async #getSdk() {
+    if (!this.#client || !this.#SendEmailCommand) {
+      const sesModule = await loadOptionalDependency('@aws-sdk/client-ses', 'ses', this.#loader);
+      if (!this.#client) {
+        const SESClient = sesModule.SESClient || sesModule.default?.SESClient;
+        this.#client = new SESClient({
+          region: this.#region,
+          credentials: {
+            accessKeyId: this.#accessKeyId,
+            secretAccessKey: this.#secretAccessKey
+          }
+        });
       }
-    });
+      if (!this.#SendEmailCommand) {
+        this.#SendEmailCommand = sesModule.SendEmailCommand || sesModule.default?.SendEmailCommand;
+      }
+    }
+    return {
+      client: this.#client,
+      SendEmailCommand: this.#SendEmailCommand
+    };
   }
 
   /**
@@ -96,7 +124,7 @@ export class SESProvider extends EmailProvider {
 
   /**
    * Get the underlying SESClient instance.
-   * @returns {SESClient}
+   * @returns {any}
    */
   get client() {
     return this.#client;
@@ -165,28 +193,27 @@ export class SESProvider extends EmailProvider {
       });
     }
 
-    let validatedReplyTo;
+    let validatedReplyTo = null;
     if (replyTo !== undefined && replyTo !== null) {
-      validatedReplyTo = validateEmailRecipients(replyTo, 'replyTo', 'ses');
+      const res = validateEmailRecipients(replyTo, 'replyTo', 'ses');
+      validatedReplyTo = Array.isArray(res) ? res : [res];
     }
 
-    let validatedCc;
+    let validatedCc = null;
     if (cc !== undefined && cc !== null) {
-      validatedCc = validateEmailRecipients(cc, 'cc', 'ses');
+      const res = validateEmailRecipients(cc, 'cc', 'ses');
+      validatedCc = Array.isArray(res) ? res : [res];
     }
 
-    let validatedBcc;
+    let validatedBcc = null;
     if (bcc !== undefined && bcc !== null) {
-      validatedBcc = validateEmailRecipients(bcc, 'bcc', 'ses');
+      const res = validateEmailRecipients(bcc, 'bcc', 'ses');
+      validatedBcc = Array.isArray(res) ? res : [res];
     }
 
-    let resolvedConfigurationSetName = this.#configurationSetName;
-    if (configurationSetName !== undefined && configurationSetName !== null) {
-      validateRequiredString(configurationSetName, 'configurationSetName', 'ses');
-      resolvedConfigurationSetName = configurationSetName.trim();
-    }
+    const toAddresses = Array.isArray(validatedTo) ? validatedTo : [validatedTo];
 
-    let formattedTags;
+    let formattedTags = null;
     if (tags !== undefined && tags !== null) {
       if (!Array.isArray(tags)) {
         throw new ValidationError("Field 'tags' must be an array of { name, value } objects", {
@@ -195,50 +222,68 @@ export class SESProvider extends EmailProvider {
         });
       }
 
-      formattedTags = tags.map((tag, index) => {
-        if (!tag || typeof tag !== 'object' || Array.isArray(tag)) {
-          throw new ValidationError(`Field 'tags[${index}]' must be an object with name and value`, {
+      formattedTags = tags.map((t, idx) => {
+        if (!t || typeof t !== 'object' || Array.isArray(t)) {
+          throw new ValidationError(`Field 'tags[${idx}]' must be an object with name and value`, {
             provider: 'ses',
-            details: { field: `tags[${index}]` }
+            details: { field: `tags[${idx}]` }
           });
         }
-        validateRequiredString(tag.name, `tags[${index}].name`, 'ses');
-        validateRequiredString(tag.value, `tags[${index}].value`, 'ses');
+        validateRequiredString(t.name, `tags[${idx}].name`, 'ses');
+        validateRequiredString(t.value, `tags[${idx}].value`, 'ses');
         return {
-          Name: tag.name.trim(),
-          Value: tag.value.trim()
+          Name: t.name.trim(),
+          Value: t.value.trim()
         };
       });
     }
 
-    const commandInput = {
+    const activeConfigSet = configurationSetName
+      ? String(configurationSetName).trim()
+      : this.#configurationSetName;
+
+    const bodyObj = {};
+    if (hasValidHtml) {
+      bodyObj.Html = {
+        Charset: 'UTF-8',
+        Data: html.trim()
+      };
+    }
+    if (hasValidText) {
+      bodyObj.Text = {
+        Charset: 'UTF-8',
+        Data: text.trim()
+      };
+    }
+
+    const destinationObj = {
+      ToAddresses: toAddresses
+    };
+    if (validatedCc) destinationObj.CcAddresses = validatedCc;
+    if (validatedBcc) destinationObj.BccAddresses = validatedBcc;
+
+    const input = {
       Source: from.trim(),
-      Destination: {
-        ToAddresses: Array.isArray(validatedTo) ? validatedTo : [validatedTo],
-        ...(validatedCc ? { CcAddresses: Array.isArray(validatedCc) ? validatedCc : [validatedCc] } : {}),
-        ...(validatedBcc ? { BccAddresses: Array.isArray(validatedBcc) ? validatedBcc : [validatedBcc] } : {})
-      },
+      Destination: destinationObj,
       Message: {
         Subject: {
-          Data: subject.trim(),
-          Charset: 'UTF-8'
+          Charset: 'UTF-8',
+          Data: subject.trim()
         },
-        Body: {
-          ...(hasValidHtml ? { Html: { Data: html.trim(), Charset: 'UTF-8' } } : {}),
-          ...(hasValidText ? { Text: { Data: text.trim(), Charset: 'UTF-8' } } : {})
-        }
+        Body: bodyObj
       },
-      ...(validatedReplyTo ? { ReplyToAddresses: Array.isArray(validatedReplyTo) ? validatedReplyTo : [validatedReplyTo] } : {}),
-      ...(resolvedConfigurationSetName ? { ConfigurationSetName: resolvedConfigurationSetName } : {}),
-      ...(formattedTags ? { Tags: formattedTags } : {}),
+      ...(validatedReplyTo ? { ReplyToAddresses: validatedReplyTo } : {}),
+      ...(activeConfigSet ? { ConfigurationSetName: activeConfigSet } : {}),
+      ...(formattedTags && formattedTags.length > 0 ? { Tags: formattedTags } : {}),
       ...extraOptions
     };
 
     try {
-      const command = new SendEmailCommand(commandInput);
-      const result = await this.#client.send(command);
+      const { client, SendEmailCommand } = await this.#getSdk();
+      const command = new SendEmailCommand(input);
+      const response = await client.send(command);
 
-      if (!result?.MessageId) {
+      if (!response?.MessageId) {
         throw new IntegrationError('Amazon SES did not return a valid MessageId', {
           code: 'PROVIDER_ERROR',
           statusCode: 502,
@@ -247,11 +292,11 @@ export class SESProvider extends EmailProvider {
       }
 
       return this.normalizeSuccess({
-        id: result.MessageId,
-        raw: result
+        id: response.MessageId,
+        raw: response
       });
     } catch (error) {
-      throw this.#handleProviderError(error, 'Amazon SES email delivery failed');
+      throw this.#handleProviderError(error, 'Failed to send email via Amazon SES');
     }
   }
 

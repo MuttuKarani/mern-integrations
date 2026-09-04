@@ -1,5 +1,4 @@
 import crypto from 'node:crypto';
-import Razorpay from 'razorpay';
 import { PaymentProvider } from '../../interfaces/PaymentProvider.js';
 import { IntegrationError } from '../../../core/errors/IntegrationError.js';
 import { ValidationError } from '../../../core/errors/ValidationError.js';
@@ -8,6 +7,7 @@ import {
   validateRequiredString,
   validateRawPayload
 } from '../../../core/utils/validators.js';
+import { loadOptionalDependency } from '../../../core/utils/dependencies.js';
 
 /**
  * Razorpay Payment Provider implementation.
@@ -22,8 +22,11 @@ export class RazorpayProvider extends PaymentProvider {
   /** @type {string|null} */
   #webhookSecret;
 
-  /** @type {Razorpay} */
+  /** @type {any} */
   #client;
+
+  /** @type {Function|null} */
+  #loader;
 
   /**
    * @param {Object} [config={}]
@@ -31,6 +34,7 @@ export class RazorpayProvider extends PaymentProvider {
    * @param {string} [config.keySecret] - Razorpay Key Secret.
    * @param {string} [config.webhookSecret] - Optional Razorpay Webhook Secret.
    * @param {Object} [config.client] - Optional pre-configured Razorpay SDK instance (useful for mocking/testing).
+   * @param {Function} [config.loader] - Optional custom import function for testing.
    * @throws {ValidationError} If required credentials are missing.
    */
   constructor(config = {}) {
@@ -43,7 +47,7 @@ export class RazorpayProvider extends PaymentProvider {
       });
     }
 
-    const { keyId, keySecret, webhookSecret = null, client = null } = config;
+    const { keyId, keySecret, webhookSecret = null, client = null, loader = null } = config;
 
     if (!client) {
       validateRequiredString(keyId, 'keyId', 'razorpay');
@@ -57,15 +61,26 @@ export class RazorpayProvider extends PaymentProvider {
     this.#keyId = keyId || null;
     this.#keySecret = keySecret || null;
     this.#webhookSecret = webhookSecret || null;
+    this.#client = client || null;
+    this.#loader = loader || null;
+  }
 
-    if (client) {
-      this.#client = client;
-    } else {
+  /**
+   * Lazily loads the Razorpay SDK and instantiates the client if not already provided.
+   *
+   * @returns {Promise<any>}
+   * @private
+   */
+  async #getClient() {
+    if (!this.#client) {
+      const RazorpayModule = await loadOptionalDependency('razorpay', 'razorpay', this.#loader);
+      const Razorpay = RazorpayModule.default || RazorpayModule;
       this.#client = new Razorpay({
         key_id: this.#keyId,
         key_secret: this.#keySecret
       });
     }
+    return this.#client;
   }
 
   /**
@@ -79,7 +94,7 @@ export class RazorpayProvider extends PaymentProvider {
 
   /**
    * Get the underlying Razorpay SDK client.
-   * @returns {Razorpay}
+   * @returns {any}
    */
   get client() {
     return this.#client;
@@ -115,7 +130,8 @@ export class RazorpayProvider extends PaymentProvider {
     };
 
     try {
-      const order = await this.#client.orders.create(payload);
+      const client = await this.#getClient();
+      const order = await client.orders.create(payload);
 
       return this.normalizeSuccess({
         id: order.id,
@@ -196,7 +212,8 @@ export class RazorpayProvider extends PaymentProvider {
     }
 
     try {
-      const refundResult = await this.#client.payments.refund(paymentId, payload);
+      const client = await this.#getClient();
+      const refundResult = await client.payments.refund(paymentId, payload);
 
       return this.normalizeSuccess({
         id: refundResult.id,
