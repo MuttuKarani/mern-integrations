@@ -10,6 +10,7 @@
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "example:razorpay": "node examples/razorpay-example.js",
     "example:ccavenue": "node examples/ccavenue-example.js",
+    "example:stripe": "node examples/stripe-example.js",
     "example:resend": "node examples/resend-example.js",
     "example:nodemailer": "node examples/nodemailer-example.js",
     "example:ses": "node examples/ses-example.js",
@@ -35,7 +36,8 @@
     "dotenv": "^16.4.7",
     "nodemailer": "^10.0.0",
     "razorpay": "^2.9.5",
-    "resend": "^6.26.0"
+    "resend": "^6.26.0",
+    "stripe": "^22.6.1"
   },
   "devDependencies": {
     "jest": "^29.7.0"

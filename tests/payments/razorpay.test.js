@@ -77,7 +77,7 @@ describe('RazorpayProvider & Payment Architecture', () => {
       ).toThrow(IntegrationError);
 
       try {
-        createPaymentProvider({ provider: 'stripe' });
+        createPaymentProvider({ provider: 'unsupported_provider' });
       } catch (err) {
         expect(err.code).toBe('UNSUPPORTED_PROVIDER');
         expect(err.statusCode).toBe(400);
