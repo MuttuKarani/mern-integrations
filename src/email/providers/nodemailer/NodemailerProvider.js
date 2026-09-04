@@ -1,4 +1,3 @@
-import nodemailer from 'nodemailer';
 import { EmailProvider } from '../../interfaces/EmailProvider.js';
 import { IntegrationError } from '../../../core/errors/IntegrationError.js';
 import { ValidationError } from '../../../core/errors/ValidationError.js';
@@ -7,12 +6,13 @@ import {
   validateEmailRecipients,
   validateRequiredObject
 } from '../../../core/utils/validators.js';
+import { loadOptionalDependency } from '../../../core/utils/dependencies.js';
 
 /**
  * Nodemailer SMTP Email Provider implementation.
  */
 export class NodemailerProvider extends EmailProvider {
-  /** @type {import('nodemailer').Transporter} */
+  /** @type {any} */
   #transporter;
 
   /** @type {string|null} */
@@ -30,6 +30,12 @@ export class NodemailerProvider extends EmailProvider {
   /** @type {Object|null} */
   #auth;
 
+  /** @type {Object} */
+  #transportOptions;
+
+  /** @type {Function|null} */
+  #loader;
+
   /**
    * @param {Object} config
    * @param {string} [config.host] - SMTP server hostname (e.g. 'smtp.mailtrap.io').
@@ -42,7 +48,8 @@ export class NodemailerProvider extends EmailProvider {
    * @param {Object} [config.tls] - Additional TLS options.
    * @param {boolean} [config.pool] - Set to true to use pooled connections.
    * @param {number} [config.maxConnections] - Max concurrent connections for pooling.
-   * @param {import('nodemailer').Transporter} [config.transporter] - Pre-instantiated Nodemailer Transporter (optional, for testing/custom transport).
+   * @param {any} [config.transporter] - Pre-instantiated Nodemailer Transporter (optional, for testing/custom transport).
+   * @param {Function} [config.loader] - Optional custom import function for testing.
    * @throws {ValidationError} If required connection or authentication options are invalid.
    */
   constructor(config = {}) {
@@ -66,7 +73,8 @@ export class NodemailerProvider extends EmailProvider {
       tls,
       pool,
       maxConnections,
-      transporter,
+      transporter = null,
+      loader = null,
       ...otherOptions
     } = config;
 
@@ -136,13 +144,10 @@ export class NodemailerProvider extends EmailProvider {
     }
 
     this.#auth = resolvedAuth;
+    this.#transporter = transporter || null;
+    this.#loader = loader || null;
 
-    if (transporter) {
-      this.#transporter = transporter;
-      return;
-    }
-
-    const transportOptions = {
+    this.#transportOptions = {
       ...(this.#service ? { service: this.#service } : {}),
       ...(this.#host ? { host: this.#host } : {}),
       ...(this.#port !== null ? { port: this.#port } : {}),
@@ -153,8 +158,21 @@ export class NodemailerProvider extends EmailProvider {
       ...(maxConnections !== undefined ? { maxConnections } : {}),
       ...otherOptions
     };
+  }
 
-    this.#transporter = nodemailer.createTransport(transportOptions);
+  /**
+   * Lazily loads the Nodemailer SDK and creates the transporter if not already provided.
+   *
+   * @returns {Promise<any>}
+   * @private
+   */
+  async #getTransporter() {
+    if (!this.#transporter) {
+      const nodemailerModule = await loadOptionalDependency('nodemailer', 'nodemailer', this.#loader);
+      const nodemailer = nodemailerModule.default || nodemailerModule;
+      this.#transporter = nodemailer.createTransport(this.#transportOptions);
+    }
+    return this.#transporter;
   }
 
   /**
@@ -168,7 +186,7 @@ export class NodemailerProvider extends EmailProvider {
 
   /**
    * Get the underlying Nodemailer Transporter instance.
-   * @returns {import('nodemailer').Transporter}
+   * @returns {any}
    */
   get transporter() {
     return this.#transporter;
@@ -186,12 +204,12 @@ export class NodemailerProvider extends EmailProvider {
    * @param {string|string[]} [params.replyTo] - Reply-to email address(es).
    * @param {string|string[]} [params.cc] - Carbon copy recipient(s).
    * @param {string|string[]} [params.bcc] - Blind carbon copy recipient(s).
-   * @param {Array<Object>} [params.attachments] - Array of attachment objects.
-   * @param {Object} [params.headers] - Custom email headers.
-   * @param {Object} [params.extraOptions] - Additional Nodemailer mail options.
-   * @returns {Promise<{success: true, provider: 'nodemailer', data: {id: string, accepted: string[], rejected: string[], response: string, raw: Object}}>}
+   * @param {Array<{filename: string, content?: string|Buffer, path?: string}>} [params.attachments] - Email attachments.
+   * @param {Object} [params.headers] - Custom email headers dictionary.
+   * @param {Object} [params.extraOptions] - Additional Nodemailer options.
+   * @returns {Promise<{success: true, provider: 'nodemailer', data: Object}>}
    * @throws {ValidationError} If input parameters fail validation.
-   * @throws {IntegrationError} If email transmission fails.
+   * @throws {IntegrationError} If Nodemailer fails to transmit the email.
    */
   async send({
     from,
@@ -237,24 +255,24 @@ export class NodemailerProvider extends EmailProvider {
       });
     }
 
-    let validatedReplyTo;
+    let validatedReplyTo = null;
     if (replyTo !== undefined && replyTo !== null) {
       validatedReplyTo = validateEmailRecipients(replyTo, 'replyTo', 'nodemailer');
     }
 
-    let validatedCc;
+    let validatedCc = null;
     if (cc !== undefined && cc !== null) {
       validatedCc = validateEmailRecipients(cc, 'cc', 'nodemailer');
     }
 
-    let validatedBcc;
+    let validatedBcc = null;
     if (bcc !== undefined && bcc !== null) {
       validatedBcc = validateEmailRecipients(bcc, 'bcc', 'nodemailer');
     }
 
     if (attachments !== undefined && attachments !== null) {
       if (!Array.isArray(attachments)) {
-        throw new ValidationError("Field 'attachments' must be an array if provided", {
+        throw new ValidationError("Field 'attachments' must be an array", {
           provider: 'nodemailer',
           details: { field: 'attachments' }
         });
@@ -262,12 +280,7 @@ export class NodemailerProvider extends EmailProvider {
     }
 
     if (headers !== undefined && headers !== null) {
-      if (typeof headers !== 'object' || Array.isArray(headers)) {
-        throw new ValidationError("Field 'headers' must be an object if provided", {
-          provider: 'nodemailer',
-          details: { field: 'headers' }
-        });
-      }
+      validateRequiredObject(headers, 'headers', 'nodemailer');
     }
 
     const mailOptions = {
@@ -285,7 +298,8 @@ export class NodemailerProvider extends EmailProvider {
     };
 
     try {
-      const info = await this.#transporter.sendMail(mailOptions);
+      const transporter = await this.#getTransporter();
+      const info = await transporter.sendMail(mailOptions);
 
       return this.normalizeSuccess({
         id: info?.messageId || null,
@@ -307,7 +321,8 @@ export class NodemailerProvider extends EmailProvider {
    */
   async verify() {
     try {
-      await this.#transporter.verify();
+      const transporter = await this.#getTransporter();
+      await transporter.verify();
 
       return this.normalizeSuccess({
         verified: true

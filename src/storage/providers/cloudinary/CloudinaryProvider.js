@@ -1,8 +1,8 @@
-import cloudinary from 'cloudinary';
 import { StorageProvider } from '../../interfaces/StorageProvider.js';
 import { IntegrationError } from '../../../core/errors/IntegrationError.js';
 import { ValidationError } from '../../../core/errors/ValidationError.js';
 import { validateRequiredString } from '../../../core/utils/validators.js';
+import { loadOptionalDependency } from '../../../core/utils/dependencies.js';
 
 /**
  * Cloudinary Storage Provider implementation.
@@ -17,8 +17,11 @@ export class CloudinaryProvider extends StorageProvider {
   /** @type {string} */
   #apiSecret;
 
-  /** @type {typeof cloudinary.v2} */
+  /** @type {any} */
   #client;
+
+  /** @type {Function|null} */
+  #loader;
 
   /**
    * @param {Object} [config={}]
@@ -26,6 +29,7 @@ export class CloudinaryProvider extends StorageProvider {
    * @param {string} config.apiKey - Cloudinary API key.
    * @param {string} config.apiSecret - Cloudinary API secret.
    * @param {Object} [config.client] - Custom Cloudinary SDK instance for testing.
+   * @param {Function} [config.loader] - Optional custom dependency loader.
    * @throws {ValidationError} If any required credential is missing or invalid.
    */
   constructor(config = {}) {
@@ -38,7 +42,7 @@ export class CloudinaryProvider extends StorageProvider {
       });
     }
 
-    const { cloudName, apiKey, apiSecret, client = null } = config;
+    const { cloudName, apiKey, apiSecret, client = null, loader = null } = config;
 
     validateRequiredString(cloudName, 'cloudName', 'cloudinary');
     validateRequiredString(apiKey, 'apiKey', 'cloudinary');
@@ -47,19 +51,31 @@ export class CloudinaryProvider extends StorageProvider {
     this.#cloudName = cloudName.trim();
     this.#apiKey = apiKey.trim();
     this.#apiSecret = apiSecret.trim();
+    this.#client = client;
+    this.#loader = loader;
+  }
 
-    if (client) {
-      this.#client = client;
-    } else {
-      const cloudinaryV2 = cloudinary.v2;
-      cloudinaryV2.config({
-        cloud_name: this.#cloudName,
-        api_key: this.#apiKey,
-        api_secret: this.#apiSecret,
-        secure: true
-      });
-      this.#client = cloudinaryV2;
+  /**
+   * Resolves the Cloudinary SDK client lazily.
+   *
+   * @returns {Promise<any>}
+   * @private
+   */
+  async #getClient() {
+    if (this.#client) {
+      return this.#client;
     }
+
+    const cloudinaryModule = await loadOptionalDependency('cloudinary', 'cloudinary', this.#loader);
+    const cloudinaryV2 = cloudinaryModule.v2 || cloudinaryModule.default?.v2 || cloudinaryModule.default || cloudinaryModule;
+    cloudinaryV2.config({
+      cloud_name: this.#cloudName,
+      api_key: this.#apiKey,
+      api_secret: this.#apiSecret,
+      secure: true
+    });
+    this.#client = cloudinaryV2;
+    return this.#client;
   }
 
   /**
@@ -113,7 +129,8 @@ export class CloudinaryProvider extends StorageProvider {
     };
 
     try {
-      const result = await this.#client.uploader.upload(file, options);
+      const client = await this.#getClient();
+      const result = await client.uploader.upload(file, options);
       return this.#normalizeUploadResponse(result);
     } catch (error) {
       throw this.#handleProviderError(error, 'Cloudinary upload failed');
@@ -154,8 +171,10 @@ export class CloudinaryProvider extends StorageProvider {
       ...extraOptions
     };
 
+    const client = await this.#getClient();
+
     return new Promise((resolve, reject) => {
-      const stream = this.#client.uploader.upload_stream(options, (error, result) => {
+      const stream = client.uploader.upload_stream(options, (error, result) => {
         if (error) {
           return reject(this.#handleProviderError(error, 'Cloudinary buffer upload failed'));
         }
@@ -197,7 +216,8 @@ export class CloudinaryProvider extends StorageProvider {
     };
 
     try {
-      const result = await this.#client.uploader.destroy(publicId, options);
+      const client = await this.#getClient();
+      const result = await client.uploader.destroy(publicId, options);
       return this.normalizeSuccess({
         publicId,
         result: result?.result || 'ok',
@@ -236,7 +256,13 @@ export class CloudinaryProvider extends StorageProvider {
       ...extraOptions
     };
 
-    const url = this.#client.url(publicId, options);
+    let url;
+    if (this.#client && typeof this.#client.url === 'function') {
+      url = this.#client.url(publicId, options);
+    } else {
+      const protocol = secure !== false ? 'https' : 'http';
+      url = `${protocol}://res.cloudinary.com/${this.#cloudName}/${options.resource_type}/upload/${publicId}`;
+    }
 
     return this.normalizeSuccess({
       publicId,

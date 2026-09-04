@@ -1,4 +1,3 @@
-import Stripe from 'stripe';
 import { PaymentProvider } from '../../interfaces/PaymentProvider.js';
 import { IntegrationError } from '../../../core/errors/IntegrationError.js';
 import { ValidationError } from '../../../core/errors/ValidationError.js';
@@ -9,6 +8,7 @@ import {
   validateRawPayload,
   validateEmail
 } from '../../../core/utils/validators.js';
+import { loadOptionalDependency } from '../../../core/utils/dependencies.js';
 
 /**
  * Stripe Payment Provider implementation using the official Stripe Node.js SDK.
@@ -20,14 +20,18 @@ export class StripeProvider extends PaymentProvider {
   /** @type {string|null} */
   #webhookSecret;
 
-  /** @type {Stripe} */
+  /** @type {any} */
   #client;
+
+  /** @type {Function|null} */
+  #loader;
 
   /**
    * @param {Object} [config={}]
    * @param {string} [config.secretKey] - Stripe secret API key (e.g., 'sk_test_...').
    * @param {string} [config.webhookSecret] - Optional Stripe webhook signing secret (e.g., 'whsec_...').
    * @param {Object} [config.client] - Optional pre-configured Stripe SDK instance (useful for mocking/testing).
+   * @param {Function} [config.loader] - Optional custom import function for testing.
    * @throws {ValidationError} If required credentials are missing when client is not injected.
    */
   constructor(config = {}) {
@@ -40,7 +44,7 @@ export class StripeProvider extends PaymentProvider {
       });
     }
 
-    const { secretKey, webhookSecret = null, client = null } = config;
+    const { secretKey, webhookSecret = null, client = null, loader = null } = config;
 
     if (!client) {
       validateRequiredString(secretKey, 'secretKey', 'stripe');
@@ -52,12 +56,23 @@ export class StripeProvider extends PaymentProvider {
 
     this.#secretKey = secretKey || null;
     this.#webhookSecret = webhookSecret || null;
+    this.#client = client || null;
+    this.#loader = loader || null;
+  }
 
-    if (client) {
-      this.#client = client;
-    } else {
+  /**
+   * Lazily loads the Stripe SDK and instantiates the client if not already provided.
+   *
+   * @returns {Promise<any>}
+   * @private
+   */
+  async #getClient() {
+    if (!this.#client) {
+      const StripeModule = await loadOptionalDependency('stripe', 'stripe', this.#loader);
+      const Stripe = StripeModule.default || StripeModule;
       this.#client = new Stripe(this.#secretKey);
     }
+    return this.#client;
   }
 
   /**
@@ -71,7 +86,7 @@ export class StripeProvider extends PaymentProvider {
 
   /**
    * Get the underlying Stripe SDK client instance.
-   * @returns {Stripe}
+   * @returns {any}
    */
   get client() {
     return this.#client;
@@ -92,7 +107,7 @@ export class StripeProvider extends PaymentProvider {
    * @param {Object} [params.extraOptions] - Any additional options accepted by Stripe PaymentIntents create.
    * @returns {Promise<{success: true, provider: 'stripe', data: {id: string, clientSecret: string, amount: number, currency: string, status: string, raw: Object}}>}
    * @throws {ValidationError} If input parameters fail validation.
-   * @throws {IntegrationError} If Stripe API rejects the PaymentIntent creation.
+   * @throws {IntegrationError} If Stripe API fails to create the PaymentIntent.
    */
   async createOrder({
     amount,
@@ -108,12 +123,12 @@ export class StripeProvider extends PaymentProvider {
     validateAmountInSmallestUnit(amount, 'amount', 'stripe');
     validateRequiredString(currency, 'currency', 'stripe');
 
-    if (receiptEmail !== undefined && receiptEmail !== null) {
-      validateEmail(receiptEmail, 'receiptEmail', 'stripe');
-    }
-
     if (description !== undefined && description !== null) {
       validateRequiredString(description, 'description', 'stripe');
+    }
+
+    if (receiptEmail !== undefined && receiptEmail !== null) {
+      validateEmail(receiptEmail, 'receiptEmail', 'stripe');
     }
 
     if (customerId !== undefined && customerId !== null) {
@@ -147,7 +162,8 @@ export class StripeProvider extends PaymentProvider {
     };
 
     try {
-      const paymentIntent = await this.#client.paymentIntents.create(payload);
+      const client = await this.#getClient();
+      const paymentIntent = await client.paymentIntents.create(payload);
 
       return this.normalizeSuccess({
         id: paymentIntent.id,
@@ -175,7 +191,8 @@ export class StripeProvider extends PaymentProvider {
     validateRequiredString(paymentIntentId, 'paymentIntentId', 'stripe');
 
     try {
-      const paymentIntent = await this.#client.paymentIntents.retrieve(paymentIntentId);
+      const client = await this.#getClient();
+      const paymentIntent = await client.paymentIntents.retrieve(paymentIntentId);
 
       const verified = paymentIntent.status === 'succeeded';
 
@@ -254,7 +271,8 @@ export class StripeProvider extends PaymentProvider {
     };
 
     try {
-      const refundResult = await this.#client.refunds.create(payload);
+      const client = await this.#getClient();
+      const refundResult = await client.refunds.create(payload);
 
       return this.normalizeSuccess({
         id: refundResult.id,
@@ -295,7 +313,8 @@ export class StripeProvider extends PaymentProvider {
     }
 
     try {
-      const event = this.#client.webhooks.constructEvent(payload, signature, activeSecret);
+      const client = await this.#getClient();
+      const event = client.webhooks.constructEvent(payload, signature, activeSecret);
 
       return this.normalizeSuccess({
         verified: true,
@@ -328,7 +347,7 @@ export class StripeProvider extends PaymentProvider {
    * @private
    */
   #handleProviderError(error, fallbackMessage) {
-    if (error instanceof IntegrationError) {
+    if (error instanceof IntegrationError || error instanceof ValidationError) {
       return error;
     }
 

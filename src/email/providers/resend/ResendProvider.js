@@ -1,4 +1,3 @@
-import { Resend } from 'resend';
 import { EmailProvider } from '../../interfaces/EmailProvider.js';
 import { IntegrationError } from '../../../core/errors/IntegrationError.js';
 import { ValidationError } from '../../../core/errors/ValidationError.js';
@@ -6,6 +5,7 @@ import {
   validateRequiredString,
   validateEmailRecipients
 } from '../../../core/utils/validators.js';
+import { loadOptionalDependency } from '../../../core/utils/dependencies.js';
 
 /**
  * Resend Email Provider implementation.
@@ -14,13 +14,17 @@ export class ResendProvider extends EmailProvider {
   /** @type {string|null} */
   #apiKey;
 
-  /** @type {Resend} */
+  /** @type {any} */
   #client;
+
+  /** @type {Function|null} */
+  #loader;
 
   /**
    * @param {Object} [config={}]
    * @param {string} [config.apiKey] - Resend API Key.
    * @param {Object} [config.client] - Pre-instantiated Resend SDK instance (optional, for testing).
+   * @param {Function} [config.loader] - Optional custom import function for testing.
    * @throws {ValidationError} If apiKey is missing or not a non-empty string.
    */
   constructor(config = {}) {
@@ -33,19 +37,30 @@ export class ResendProvider extends EmailProvider {
       });
     }
 
-    const { apiKey, client = null } = config;
+    const { apiKey, client = null, loader = null } = config;
 
     if (!client) {
       validateRequiredString(apiKey, 'apiKey', 'resend');
     }
 
     this.#apiKey = apiKey ? apiKey.trim() : null;
+    this.#client = client || null;
+    this.#loader = loader || null;
+  }
 
-    if (client) {
-      this.#client = client;
-    } else {
+  /**
+   * Lazily loads the Resend SDK and instantiates the client if not already provided.
+   *
+   * @returns {Promise<any>}
+   * @private
+   */
+  async #getClient() {
+    if (!this.#client) {
+      const ResendModule = await loadOptionalDependency('resend', 'resend', this.#loader);
+      const Resend = ResendModule.Resend || ResendModule.default?.Resend || ResendModule.default || ResendModule;
       this.#client = new Resend(this.#apiKey);
     }
+    return this.#client;
   }
 
   /**
@@ -59,7 +74,7 @@ export class ResendProvider extends EmailProvider {
 
   /**
    * Get the underlying Resend SDK client.
-   * @returns {Resend}
+   * @returns {any}
    */
   get client() {
     return this.#client;
@@ -114,17 +129,17 @@ export class ResendProvider extends EmailProvider {
       });
     }
 
-    let validatedReplyTo;
+    let validatedReplyTo = null;
     if (replyTo !== undefined && replyTo !== null) {
       validatedReplyTo = validateEmailRecipients(replyTo, 'replyTo', 'resend');
     }
 
-    let validatedCc;
+    let validatedCc = null;
     if (cc !== undefined && cc !== null) {
       validatedCc = validateEmailRecipients(cc, 'cc', 'resend');
     }
 
-    let validatedBcc;
+    let validatedBcc = null;
     if (bcc !== undefined && bcc !== null) {
       validatedBcc = validateEmailRecipients(bcc, 'bcc', 'resend');
     }
@@ -163,7 +178,8 @@ export class ResendProvider extends EmailProvider {
     };
 
     try {
-      const result = await this.#client.emails.send(payload);
+      const client = await this.#getClient();
+      const result = await client.emails.send(payload);
 
       if (result?.error) {
         let errorMsg = result.error.message || 'Failed to send email via Resend';
@@ -189,7 +205,7 @@ export class ResendProvider extends EmailProvider {
         id: result.data.id
       });
     } catch (error) {
-      if (error instanceof IntegrationError) {
+      if (error instanceof IntegrationError || error instanceof ValidationError) {
         throw error;
       }
 
@@ -200,7 +216,7 @@ export class ResendProvider extends EmailProvider {
         code: 'PROVIDER_ERROR',
         statusCode: 502,
         provider: 'resend',
-        details: error?.name ? { name: error.name } : null
+        details: { name: error?.name }
       });
     }
   }

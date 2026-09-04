@@ -1,23 +1,16 @@
 import fs from 'fs';
 import path from 'path';
-import {
-  S3Client,
-  PutObjectCommand,
-  DeleteObjectCommand,
-  GetObjectCommand
-} from '@aws-sdk/client-s3';
-import { Upload } from '@aws-sdk/lib-storage';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { StorageProvider } from '../../interfaces/StorageProvider.js';
 import { IntegrationError } from '../../../core/errors/IntegrationError.js';
 import { ValidationError } from '../../../core/errors/ValidationError.js';
 import { validateRequiredString } from '../../../core/utils/validators.js';
+import { loadOptionalDependency } from '../../../core/utils/dependencies.js';
 
 /**
  * AWS S3 Storage Provider implementation.
  */
 export class S3Provider extends StorageProvider {
-  /** @type {S3Client} */
+  /** @type {any} */
   #client;
 
   /** @type {string} */
@@ -38,11 +31,17 @@ export class S3Provider extends StorageProvider {
   /** @type {boolean} */
   #forcePathStyle;
 
-  /** @type {typeof getSignedUrl} */
+  /** @type {Function|null} */
   #presigner;
 
-  /** @type {typeof Upload} */
+  /** @type {any} */
   #uploadFactory;
+
+  /** @type {Function|null} */
+  #loader;
+
+  /** @type {Object|null} */
+  #commands;
 
   /**
    * @param {Object} [config={}]
@@ -52,9 +51,10 @@ export class S3Provider extends StorageProvider {
    * @param {string} config.bucket - S3 Bucket name.
    * @param {string} [config.endpoint] - Optional custom endpoint for S3-compatible providers (e.g. MinIO, Cloudflare R2).
    * @param {boolean} [config.forcePathStyle=false] - Whether to force path-style S3 URLs.
-   * @param {S3Client} [config.client] - Custom S3Client instance for testing/mocking.
-   * @param {typeof getSignedUrl} [config.presigner] - Custom presigner function for testing.
-   * @param {typeof Upload} [config.uploadFactory] - Custom Upload class for testing.
+   * @param {any} [config.client] - Custom S3Client instance for testing/mocking.
+   * @param {Function} [config.presigner] - Custom presigner function for testing.
+   * @param {any} [config.uploadFactory] - Custom Upload class for testing.
+   * @param {Function} [config.loader] - Optional custom dependency loader.
    * @throws {ValidationError} If any required configuration parameter is missing or invalid.
    */
   constructor(config = {}) {
@@ -76,7 +76,8 @@ export class S3Provider extends StorageProvider {
       forcePathStyle = false,
       client = null,
       presigner = null,
-      uploadFactory = null
+      uploadFactory = null,
+      loader = null
     } = config;
 
     validateRequiredString(accessKeyId, 'accessKeyId', 's3');
@@ -90,12 +91,59 @@ export class S3Provider extends StorageProvider {
     this.#bucket = bucket.trim();
     this.#endpoint = endpoint ? String(endpoint).trim() : null;
     this.#forcePathStyle = Boolean(forcePathStyle);
-    this.#presigner = presigner || getSignedUrl;
-    this.#uploadFactory = uploadFactory || Upload;
+    this.#client = client;
+    this.#presigner = presigner;
+    this.#uploadFactory = uploadFactory;
+    this.#loader = loader;
+    this.#commands = null;
+  }
 
-    if (client) {
-      this.#client = client;
-    } else {
+  /**
+   * Resolves the AWS S3 client and commands lazily.
+   *
+   * @returns {Promise<{client: any, commands: Object}>}
+   * @private
+   */
+  async #getSdk() {
+    if (this.#client && this.#commands) {
+      return { client: this.#client, commands: this.#commands };
+    }
+
+    if (!this.#commands) {
+      const s3Module = await loadOptionalDependency('@aws-sdk/client-s3', 's3', this.#loader);
+      const S3ClientClass = s3Module.S3Client || s3Module.default?.S3Client;
+      const PutObjectCommand = s3Module.PutObjectCommand || s3Module.default?.PutObjectCommand;
+      const DeleteObjectCommand = s3Module.DeleteObjectCommand || s3Module.default?.DeleteObjectCommand;
+      const GetObjectCommand = s3Module.GetObjectCommand || s3Module.default?.GetObjectCommand;
+
+      this.#commands = {
+        PutObjectCommand,
+        DeleteObjectCommand,
+        GetObjectCommand
+      };
+
+      if (!this.#client) {
+        const clientConfig = {
+          region: this.#region,
+          credentials: {
+            accessKeyId: this.#accessKeyId,
+            secretAccessKey: this.#secretAccessKey
+          }
+        };
+
+        if (this.#endpoint) {
+          clientConfig.endpoint = this.#endpoint;
+        }
+
+        if (this.#forcePathStyle !== undefined) {
+          clientConfig.forcePathStyle = this.#forcePathStyle;
+        }
+
+        this.#client = new S3ClientClass(clientConfig);
+      }
+    } else if (!this.#client) {
+      const s3Module = await loadOptionalDependency('@aws-sdk/client-s3', 's3', this.#loader);
+      const S3ClientClass = s3Module.S3Client || s3Module.default?.S3Client;
       const clientConfig = {
         region: this.#region,
         credentials: {
@@ -112,8 +160,40 @@ export class S3Provider extends StorageProvider {
         clientConfig.forcePathStyle = this.#forcePathStyle;
       }
 
-      this.#client = new S3Client(clientConfig);
+      this.#client = new S3ClientClass(clientConfig);
     }
+
+    return { client: this.#client, commands: this.#commands };
+  }
+
+  /**
+   * Resolves the AWS S3 presigner lazily.
+   *
+   * @returns {Promise<Function>}
+   * @private
+   */
+  async #getPresigner() {
+    if (this.#presigner) {
+      return this.#presigner;
+    }
+    const presignerModule = await loadOptionalDependency('@aws-sdk/s3-request-presigner', 's3', this.#loader);
+    this.#presigner = presignerModule.getSignedUrl || presignerModule.default?.getSignedUrl || presignerModule.default;
+    return this.#presigner;
+  }
+
+  /**
+   * Resolves the AWS lib-storage Upload factory lazily.
+   *
+   * @returns {Promise<any>}
+   * @private
+   */
+  async #getUploadFactory() {
+    if (this.#uploadFactory) {
+      return this.#uploadFactory;
+    }
+    const libStorageModule = await loadOptionalDependency('@aws-sdk/lib-storage', 's3', this.#loader);
+    this.#uploadFactory = libStorageModule.Upload || libStorageModule.default?.Upload || libStorageModule.default;
+    return this.#uploadFactory;
   }
 
   /**
@@ -157,10 +237,11 @@ export class S3Provider extends StorageProvider {
     const resolvedKey = this.#buildKey(folder, key, fileName);
 
     try {
+      const { client, commands } = await this.#getSdk();
       const fileBuffer = await fs.promises.readFile(file);
       const inferredContentType = contentType || this.#inferContentType(file);
 
-      const command = new PutObjectCommand({
+      const command = new commands.PutObjectCommand({
         Bucket: this.#bucket,
         Key: resolvedKey,
         Body: fileBuffer,
@@ -171,7 +252,7 @@ export class S3Provider extends StorageProvider {
         ...extraOptions
       });
 
-      const result = await this.#client.send(command);
+      const result = await client.send(command);
 
       return this.normalizeSuccess({
         key: resolvedKey,
@@ -224,7 +305,8 @@ export class S3Provider extends StorageProvider {
     const resolvedKey = this.#buildKey(folder, key, key);
 
     try {
-      const command = new PutObjectCommand({
+      const { client, commands } = await this.#getSdk();
+      const command = new commands.PutObjectCommand({
         Bucket: this.#bucket,
         Key: resolvedKey,
         Body: buffer,
@@ -235,7 +317,7 @@ export class S3Provider extends StorageProvider {
         ...extraOptions
       });
 
-      const result = await this.#client.send(command);
+      const result = await client.send(command);
 
       return this.normalizeSuccess({
         key: resolvedKey,
@@ -286,9 +368,10 @@ export class S3Provider extends StorageProvider {
     const resolvedKey = this.#buildKey(folder, key, key);
 
     try {
-      const UploadClass = this.#uploadFactory;
+      const { client } = await this.#getSdk();
+      const UploadClass = await this.#getUploadFactory();
       const parallelUpload = new UploadClass({
-        client: this.#client,
+        client,
         params: {
           Bucket: this.#bucket,
           Key: resolvedKey,
@@ -330,13 +413,14 @@ export class S3Provider extends StorageProvider {
     validateRequiredString(key, 'key', 's3');
 
     try {
-      const command = new DeleteObjectCommand({
+      const { client, commands } = await this.#getSdk();
+      const command = new commands.DeleteObjectCommand({
         Bucket: this.#bucket,
         Key: key,
         ...extraOptions
       });
 
-      const result = await this.#client.send(command);
+      const result = await client.send(command);
 
       return this.normalizeSuccess({
         key,
@@ -385,13 +469,15 @@ export class S3Provider extends StorageProvider {
     }
 
     try {
-      const command = new GetObjectCommand({
+      const { client, commands } = await this.#getSdk();
+      const presigner = await this.#getPresigner();
+      const command = new commands.GetObjectCommand({
         Bucket: this.#bucket,
         Key: key,
         ...extraOptions
       });
 
-      const url = await this.#presigner(this.#client, command, { expiresIn });
+      const url = await presigner(client, command, { expiresIn });
 
       return this.normalizeSuccess({
         key,
