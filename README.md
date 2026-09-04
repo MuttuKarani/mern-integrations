@@ -16,22 +16,25 @@ A modular, reusable backend integration library for MERN stack applications. Thi
   - [Payment Factory](#payment-factory)
   - [Email Factory](#email-factory)
   - [SMS Factory](#sms-factory)
+  - [Storage Factory](#storage-factory)
 - [6. Payment Providers](#6-payment-providers)
   - [Amount Convention](#amount-convention)
   - [Razorpay Integration](#razorpay-integration)
   - [CCAvenue Integration](#ccavenue-integration)
+  - [Stripe Integration](#stripe-integration)
 - [7. Email Providers](#7-email-providers)
   - [Resend Integration](#resend-integration)
+  - [Nodemailer SMTP Integration](#nodemailer-smtp-integration)
+  - [Amazon SES Integration](#amazon-ses-integration)
 - [8. SMS & OTP Providers](#8-sms--otp-providers)
   - [MSG91 Integration](#msg91-integration)
-  - [Sending OTP (sendOTP)](#sending-otp-sendotp)
-  - [Verifying OTP (verifyOTP)](#verifying-otp-verifyotp)
-  - [Resending OTP (resendOTP)](#resending-otp-resendotp)
-  - [Sending SMS (sendSMS)](#sending-sms-sendsms)
-  - [Important Indian DLT & Template Considerations](#important-indian-dlt--template-considerations)
-- [9. Error Handling & Response Normalization](#9-error-handling--response-normalization)
-- [10. Example Scripts](#10-example-scripts)
-- [11. Testing Instructions](#11-testing-instructions)
+  - [MessageBird Integration](#messagebird-integration)
+- [9. Storage Providers](#9-storage-providers)
+  - [Cloudinary Integration](#cloudinary-integration)
+  - [AWS S3 Integration](#aws-s3-integration)
+- [10. Error Handling & Response Normalization](#10-error-handling--response-normalization)
+- [11. Example Scripts](#11-example-scripts)
+- [12. Testing Instructions](#12-testing-instructions)
 
 ---
 
@@ -40,11 +43,11 @@ A modular, reusable backend integration library for MERN stack applications. Thi
 In standard MERN applications, integrating third-party services directly into controller logic often leads to tight coupling, vendor lock-in, fragmented error handling, and security oversights.
 
 `mern-integrations` solves this by introducing:
-- **Provider Abstractions**: Unified `PaymentProvider`, `EmailProvider`, and `SMSProvider` interfaces decoupling business logic from third-party gateway SDKs.
+- **Provider Abstractions**: Unified `PaymentProvider`, `EmailProvider`, `SMSProvider`, and `StorageProvider` interfaces decoupling business logic from third-party gateway SDKs.
 - **Strict Input Validation**: Guaranteed validation of amounts, currencies, emails, mobile numbers, and payload types before API calls.
-- **Secure Cryptography & Transport**: Native `crypto.timingSafeEqual()` for Razorpay HMAC signatures, verified `AES-128-CBC` (MD5 key derivation) for CCAvenue, and official Node `fetch` transport for MSG91.
+- **Secure Cryptography & Transport**: Native `crypto.timingSafeEqual()` for Razorpay HMAC signatures, verified `AES-128-CBC` (MD5 key derivation) for CCAvenue, official Stripe SDK with webhook verification, and official AWS SDK v3.
 - **Normalized Response Format**: Consistent success and error response shapes across all providers.
-- **Private & Extensible Foundation**: Built with ES Modules, supporting future providers (SendGrid, AWS SES, MessageBird, Postmark).
+- **Private & Extensible Foundation**: Built with ES Modules, supporting multi-provider architectures.
 
 ---
 
@@ -70,9 +73,11 @@ mern-integrations/
 │   │   ├── providers/
 │   │   │   ├── razorpay/
 │   │   │   │   └── RazorpayProvider.js   # Razorpay SDK implementation
-│   │   │   └── ccavenue/
-│   │   │       ├── CCAvenueProvider.js   # CCAvenue redirect & callback implementation
-│   │   │       └── ccavenue.crypto.js    # Official AES-128-CBC crypto helpers
+│   │   │   ├── ccavenue/
+│   │   │   │   ├── CCAvenueProvider.js   # CCAvenue redirect & callback implementation
+│   │   │   │   └── ccavenue.crypto.js    # Official AES-128-CBC crypto helpers
+│   │   │   └── stripe/
+│   │   │       └── StripeProvider.js     # Stripe SDK PaymentIntents implementation
 │   │   ├── factories/
 │   │   │   └── PaymentFactory.js         # Payment provider factory
 │   │   └── index.js                      # Payments module exports
@@ -95,30 +100,55 @@ mern-integrations/
 │   │   ├── interfaces/
 │   │   │   └── SMSProvider.js            # Abstract base SMS & OTP class
 │   │   ├── providers/
-│   │   │   └── msg91/
-│   │   │       └── MSG91Provider.js      # MSG91 SMS & OTP implementation
+│   │   │   ├── msg91/
+│   │   │   │   └── MSG91Provider.js      # MSG91 SMS & OTP implementation
+│   │   │   └── messagebird/
+│   │   │       └── MessageBirdProvider.js# MessageBird Conversations API
 │   │   ├── factories/
 │   │   │   └── SMSFactory.js             # SMS provider factory
 │   │   └── index.js                      # SMS module exports
+│   │
+│   ├── storage/
+│   │   ├── interfaces/
+│   │   │   └── StorageProvider.js        # Abstract base storage class
+│   │   ├── providers/
+│   │   │   ├── cloudinary/
+│   │   │   │   └── CloudinaryProvider.js # Cloudinary SDK implementation
+│   │   │   └── s3/
+│   │   │       └── S3Provider.js         # AWS S3 v3 implementation
+│   │   ├── factories/
+│   │   │   └── StorageFactory.js         # Storage provider factory
+│   │   └── index.js                      # Storage module exports
 │   │
 │   └── index.js                          # Root package entry point
 │
 ├── examples/
 │   ├── razorpay-example.js               # Razorpay usage example
 │   ├── ccavenue-example.js               # CCAvenue usage example
+│   ├── stripe-example.js                 # Stripe usage example
 │   ├── resend-example.js                 # Resend usage example
 │   ├── nodemailer-example.js             # Nodemailer usage example
 │   ├── ses-example.js                    # Amazon SES usage example
-│   └── msg91-example.js                  # MSG91 SMS & OTP usage example
+│   ├── msg91-example.js                  # MSG91 SMS & OTP usage example
+│   ├── messagebird-example.js            # MessageBird SMS & WhatsApp example
+│   ├── cloudinary-example.js             # Cloudinary storage usage example
+│   └── s3-example.js                     # AWS S3 storage usage example
 │
 ├── tests/
 │   ├── payments/
 │   │   ├── razorpay.test.js              # Razorpay unit tests with SDK mocks
-│   │   └── ccavenue.test.js              # CCAvenue unit tests with crypto vectors
+│   │   ├── ccavenue.test.js              # CCAvenue unit tests with crypto vectors
+│   │   └── stripe.test.js                # Stripe unit tests with SDK mocks
 │   ├── email/
-│   │   └── resend.test.js                # Resend unit tests with SDK mocks
-│   └── sms/
-│       └── msg91.test.js                 # MSG91 unit tests with mock transport
+│   │   ├── resend.test.js                # Resend unit tests with SDK mocks
+│   │   ├── nodemailer.test.js            # Nodemailer unit tests with mocks
+│   │   └── ses.test.js                   # Amazon SES unit tests with SDK mocks
+│   ├── sms/
+│   │   ├── msg91.test.js                 # MSG91 unit tests with mock transport
+│   │   └── messagebird.test.js           # MessageBird unit tests with mocks
+│   └── storage/
+│       ├── cloudinary.test.js            # Cloudinary unit tests with mocks
+│       └── s3.test.js                    # AWS S3 unit tests with mocks
 │
 ├── .env.example
 ├── .gitignore
@@ -159,6 +189,10 @@ CCAVENUE_ACCESS_CODE=YourAccessCodeHere
 CCAVENUE_WORKING_KEY=YourWorkingKeyHere
 CCAVENUE_BASE_URL=https://test.ccavenue.com
 
+# Stripe Credentials
+STRIPE_SECRET_KEY=sk_test_YourStripeSecretKeyHere
+STRIPE_WEBHOOK_SECRET=whsec_YourWebhookSecretHere
+
 # Resend Email Credentials
 RESEND_API_KEY=re_YourResendApiKeyHere
 
@@ -192,11 +226,28 @@ MSG91_BASE_URL=https://control.msg91.com
 ```javascript
 import { createPaymentProvider } from 'mern-integrations';
 
+// 1. Razorpay Provider
 const razorpay = createPaymentProvider({
   provider: 'razorpay',
   keyId: process.env.RAZORPAY_KEY_ID,
   keySecret: process.env.RAZORPAY_KEY_SECRET,
   webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET
+});
+
+// 2. CCAvenue Provider
+const ccavenue = createPaymentProvider({
+  provider: 'ccavenue',
+  merchantId: process.env.CCAVENUE_MERCHANT_ID,
+  accessCode: process.env.CCAVENUE_ACCESS_CODE,
+  workingKey: process.env.CCAVENUE_WORKING_KEY,
+  baseUrl: process.env.CCAVENUE_BASE_URL
+});
+
+// 3. Stripe Provider
+const stripe = createPaymentProvider({
+  provider: 'stripe',
+  secretKey: process.env.STRIPE_SECRET_KEY,
+  webhookSecret: process.env.STRIPE_WEBHOOK_SECRET
 });
 ```
 
@@ -296,6 +347,179 @@ const s3Storage = createStorageProvider({
 - `initiatePayment({ orderId, amount, currency, redirectUrl, cancelUrl, billing, shipping })`: Generates the encrypted AES-128-CBC redirect descriptor (`encRequest` + `access_code`) for hosted form checkout.
 - `verifyCallback({ encResp })`: Decrypts and parses the encrypted callback response received at `redirect_url` or `cancel_url`.
 - `refund()`: Programmatic refunds require enterprise `DoWebTrans` servlet + IP whitelisting; throws `UNSUPPORTED_OPERATION` (501).
+
+---
+
+### Stripe Integration
+
+`StripeProvider` integrates Stripe payments using the official `stripe` Node.js SDK. It manages the full lifecycle of payment flows using Stripe **PaymentIntents**, payment verification, refunds, and cryptographic webhook event validation.
+
+#### Provider Initialization
+
+```javascript
+import { createPaymentProvider, StripeProvider } from 'mern-integrations';
+
+// Via Factory
+const stripe = createPaymentProvider({
+  provider: 'stripe',
+  secretKey: process.env.STRIPE_SECRET_KEY,
+  webhookSecret: process.env.STRIPE_WEBHOOK_SECRET
+});
+
+// Or Direct Instantiation
+const directStripe = new StripeProvider({
+  secretKey: process.env.STRIPE_SECRET_KEY,
+  webhookSecret: process.env.STRIPE_WEBHOOK_SECRET
+});
+```
+
+#### 1. Creating a PaymentIntent (`createOrder`)
+
+Creates a Stripe PaymentIntent with automatic or manual capture, customer attachment, and custom metadata.
+
+> [!IMPORTANT]
+> **Client-Side Confirmation Required:** The backend `createOrder` method creates the PaymentIntent and returns `clientSecret`. The backend alone does NOT complete card payment collection. The client frontend must use **Stripe.js** (e.g. `@stripe/react-stripe-js` or `@stripe/stripe-js`) along with `stripe.confirmCardPayment(clientSecret)` or Stripe Payment Element to securely collect card details and authenticate the customer (including 3D Secure).
+
+```javascript
+const intent = await stripe.createOrder({
+  amount: 2000, // Amount in smallest unit: 2000 cents = $20.00 USD
+  currency: 'usd', // Default is 'usd'
+  description: 'Premium Monthly Subscription',
+  receiptEmail: 'customer@example.com',
+  customerId: 'cus_123456789', // Optional
+  metadata: {
+    userId: 'user_101',
+    plan: 'pro_monthly'
+  }
+});
+
+// Pass `intent.data.clientSecret` to your frontend Stripe.js checkout form
+console.log('Client Secret:', intent.data.clientSecret);
+```
+
+#### Normalized PaymentIntent Response:
+```json
+{
+  "success": true,
+  "provider": "stripe",
+  "data": {
+    "id": "pi_3MtwxGA9Iipxub",
+    "clientSecret": "pi_3MtwxGA9Iipxub_secret_example",
+    "amount": 2000,
+    "currency": "usd",
+    "status": "requires_payment_method",
+    "raw": { /* Upstream Stripe PaymentIntent object */ }
+  }
+}
+```
+
+#### 2. Verifying Payment Status (`verifyPayment`)
+
+Retrieves the PaymentIntent from Stripe and evaluates whether the payment has successfully completed.
+
+```javascript
+const verification = await stripe.verifyPayment({
+  paymentIntentId: 'pi_3MtwxGA9Iipxub'
+});
+
+if (verification.data.verified) {
+  console.log('Payment was successfully captured!');
+} else {
+  console.log('Payment status:', verification.data.status); // e.g. 'requires_action', 'processing', 'canceled'
+}
+```
+
+#### Normalized Verification Response:
+```json
+{
+  "success": true,
+  "provider": "stripe",
+  "data": {
+    "id": "pi_3MtwxGA9Iipxub",
+    "status": "succeeded",
+    "amount": 2000,
+    "currency": "usd",
+    "verified": true,
+    "raw": { /* Upstream Stripe PaymentIntent object */ }
+  }
+}
+```
+
+#### 3. Processing Refunds (`refund`)
+
+Issues full or partial refunds against a `paymentIntentId` or `chargeId`.
+
+```javascript
+// Full refund
+const fullRefund = await stripe.refund({
+  paymentIntentId: 'pi_3MtwxGA9Iipxub'
+});
+
+// Partial refund with reason and metadata
+const partialRefund = await stripe.refund({
+  paymentIntentId: 'pi_3MtwxGA9Iipxub',
+  amount: 1000, // Refund $10.00 of $20.00
+  reason: 'requested_by_customer',
+  metadata: { orderId: 'ord_123' }
+});
+```
+
+#### Normalized Refund Response:
+```json
+{
+  "success": true,
+  "provider": "stripe",
+  "data": {
+    "id": "re_3MtwxGA9Iipxub",
+    "status": "succeeded",
+    "amount": 1000,
+    "currency": "usd",
+    "raw": { /* Upstream Stripe Refund object */ }
+  }
+}
+```
+
+#### 4. Webhook Signature Verification (`verifyWebhook`)
+
+Cryptographically verifies incoming webhook events from Stripe using `stripe.webhooks.constructEvent` with the raw request body.
+
+```javascript
+// In Express, use express.raw({ type: 'application/json' }) for webhook routes
+app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+  const signature = req.headers['stripe-signature'];
+
+  try {
+    const result = await stripe.verifyWebhook({
+      payload: req.body, // Exact raw Buffer or string
+      signature
+    });
+
+    if (!result.data.verified) {
+      return res.status(400).send('Invalid signature');
+    }
+
+    const event = result.data.event;
+    switch (event.type) {
+      case 'payment_intent.succeeded':
+        const paymentIntent = event.data.object;
+        console.log(`Payment for ${paymentIntent.amount} succeeded!`);
+        break;
+      case 'payment_intent.payment_failed':
+        console.log('Payment failed:', event.data.object.last_payment_error?.message);
+        break;
+    }
+
+    res.json({ received: true });
+  } catch (err) {
+    res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+});
+```
+
+#### Security Notes
+- `secretKey`, `webhookSecret`, and SDK client instances are encapsulated inside ECMAScript private class fields (`#secretKey`, `#webhookSecret`, `#client`).
+- Credentials are never exposed via `Object.keys()`, `JSON.stringify()`, or normalized response objects.
+- All thrown `IntegrationError` instances sanitize and redact API secrets automatically before serialization.
 
 ---
 
@@ -1053,6 +1277,9 @@ npm run example:razorpay
 # Run CCAvenue payment example
 npm run example:ccavenue
 
+# Run Stripe payment example
+npm run example:stripe
+
 # Run Resend email example
 npm run example:resend
 
@@ -1082,7 +1309,7 @@ npm run example:s3
 The test suite uses **Jest** with ES Module support. All gateway API calls and cryptographic flows are tested using mocks and verified reference vectors.
 
 ```bash
-# Run all tests (Razorpay + CCAvenue + Resend + Nodemailer + SES + MSG91 + MessageBird + Cloudinary + S3)
+# Run all tests (Razorpay + CCAvenue + Stripe + Resend + Nodemailer + SES + MSG91 + MessageBird + Cloudinary + S3)
 npm test
 
 # Run tests in watch mode
