@@ -88,3 +88,74 @@ export function validateRawPayload(value, fieldName = 'payload', provider = 'unk
     );
   }
 }
+
+/**
+ * Basic email format validator regex.
+ */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Validates that a value is a valid email address string.
+ *
+ * @param {*} value - Value to validate.
+ * @param {string} fieldName - Name of the field for error reporting.
+ * @param {string} [provider='unknown'] - Provider name.
+ * @throws {ValidationError} If value is not a valid email string.
+ */
+export function validateEmail(value, fieldName = 'email', provider = 'unknown') {
+  if (typeof value !== 'string' || value.trim().length === 0 || !EMAIL_REGEX.test(value.trim())) {
+    throw new ValidationError(
+      `Field '${fieldName}' must be a valid email address`,
+      {
+        provider,
+        details: { field: fieldName, received: value }
+      }
+    );
+  }
+}
+
+/**
+ * Validates email recipients (supporting either a single email string or an array of email strings).
+ *
+ * @param {*} value - Single email or array of emails.
+ * @param {string} fieldName - Name of the field for error reporting.
+ * @param {string} [provider='unknown'] - Provider name.
+ * @returns {string|string[]} The validated value.
+ * @throws {ValidationError} If recipient format is invalid or array is empty.
+ */
+export function validateEmailRecipients(value, fieldName = 'to', provider = 'unknown') {
+  if (value === undefined || value === null) {
+    throw new ValidationError(`Field '${fieldName}' is required and must contain at least one recipient email address`, {
+      provider,
+      details: { field: fieldName }
+    });
+  }
+
+  if (typeof value === 'string') {
+    validateEmail(value, fieldName, provider);
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      throw new ValidationError(`Field '${fieldName}' must contain at least one recipient email address`, {
+        provider,
+        details: { field: fieldName }
+      });
+    }
+
+    for (let i = 0; i < value.length; i++) {
+      validateEmail(value[i], `${fieldName}[${i}]`, provider);
+    }
+    return value;
+  }
+
+  throw new ValidationError(
+    `Field '${fieldName}' must be a valid email string or an array of email strings`,
+    {
+      provider,
+      details: { field: fieldName, received: value }
+    }
+  );
+}
+
