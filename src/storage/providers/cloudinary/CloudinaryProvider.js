@@ -21,15 +21,24 @@ export class CloudinaryProvider extends StorageProvider {
   #client;
 
   /**
-   * @param {Object} config
+   * @param {Object} [config={}]
    * @param {string} config.cloudName - Cloudinary cloud name.
    * @param {string} config.apiKey - Cloudinary API key.
    * @param {string} config.apiSecret - Cloudinary API secret.
    * @param {Object} [config.client] - Custom Cloudinary SDK instance for testing.
    * @throws {ValidationError} If any required credential is missing or invalid.
    */
-  constructor({ cloudName, apiKey, apiSecret, client = null } = {}) {
+  constructor(config = {}) {
     super('cloudinary');
+
+    if (!config || typeof config !== 'object' || Array.isArray(config)) {
+      throw new ValidationError("Config must be a valid object for 'cloudinary' provider", {
+        provider: 'cloudinary',
+        details: { field: 'config' }
+      });
+    }
+
+    const { cloudName, apiKey, apiSecret, client = null } = config;
 
     validateRequiredString(cloudName, 'cloudName', 'cloudinary');
     validateRequiredString(apiKey, 'apiKey', 'cloudinary');
@@ -262,7 +271,14 @@ export class CloudinaryProvider extends StorageProvider {
     }
 
     const statusCode = error?.http_code || error?.status || 500;
-    const message = error?.message || error?.error?.message || fallbackMessage;
+    let message = error?.message || error?.error?.message || fallbackMessage;
+
+    if (this.#apiSecret) {
+      message = message.replaceAll(this.#apiSecret, '[REDACTED]');
+    }
+    if (this.#apiKey) {
+      message = message.replaceAll(this.#apiKey, '[REDACTED]');
+    }
 
     return new IntegrationError(message, {
       code: statusCode === 401 ? 'AUTHENTICATION_ERROR' : 'PROVIDER_ERROR',

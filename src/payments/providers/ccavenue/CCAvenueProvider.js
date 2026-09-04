@@ -27,7 +27,7 @@ export class CCAvenueProvider extends PaymentProvider {
   #baseUrl;
 
   /**
-   * @param {Object} config
+   * @param {Object} [config={}]
    * @param {string} config.merchantId - CCAvenue Merchant ID.
    * @param {string} config.accessCode - CCAvenue Access Code.
    * @param {string} config.workingKey - CCAvenue Working Key (Encryption Key).
@@ -35,8 +35,17 @@ export class CCAvenueProvider extends PaymentProvider {
    * @param {boolean} [config.testMode=false] - If true, points to CCAvenue test environment (https://test.ccavenue.com).
    * @throws {ValidationError} If required credentials are missing.
    */
-  constructor({ merchantId, accessCode, workingKey, baseUrl = null, testMode = false } = {}) {
+  constructor(config = {}) {
     super('ccavenue');
+
+    if (!config || typeof config !== 'object' || Array.isArray(config)) {
+      throw new ValidationError("Config must be a valid object for 'ccavenue' provider", {
+        provider: 'ccavenue',
+        details: { field: 'config' }
+      });
+    }
+
+    const { merchantId, accessCode, workingKey, baseUrl = null, testMode = false } = config;
 
     validateRequiredString(merchantId, 'merchantId', 'ccavenue');
     validateRequiredString(accessCode, 'accessCode', 'ccavenue');

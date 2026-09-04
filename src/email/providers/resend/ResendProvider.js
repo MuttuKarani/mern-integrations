@@ -11,24 +11,40 @@ import {
  * Resend Email Provider implementation.
  */
 export class ResendProvider extends EmailProvider {
+  /** @type {string|null} */
+  #apiKey;
+
   /** @type {Resend} */
   #client;
 
   /**
-   * @param {Object} config
-   * @param {string} config.apiKey - Resend API Key.
+   * @param {Object} [config={}]
+   * @param {string} [config.apiKey] - Resend API Key.
    * @param {Object} [config.client] - Pre-instantiated Resend SDK instance (optional, for testing).
    * @throws {ValidationError} If apiKey is missing or not a non-empty string.
    */
-  constructor({ apiKey, client = null } = {}) {
+  constructor(config = {}) {
     super('resend');
 
-    validateRequiredString(apiKey, 'apiKey', 'resend');
+    if (!config || typeof config !== 'object' || Array.isArray(config)) {
+      throw new ValidationError("Config must be a valid object for 'resend' provider", {
+        provider: 'resend',
+        details: { field: 'config' }
+      });
+    }
+
+    const { apiKey, client = null } = config;
+
+    if (!client) {
+      validateRequiredString(apiKey, 'apiKey', 'resend');
+    }
+
+    this.#apiKey = apiKey ? apiKey.trim() : null;
 
     if (client) {
       this.#client = client;
     } else {
-      this.#client = new Resend(apiKey.trim());
+      this.#client = new Resend(this.#apiKey);
     }
   }
 
@@ -141,7 +157,10 @@ export class ResendProvider extends EmailProvider {
       const result = await this.#client.emails.send(payload);
 
       if (result?.error) {
-        throw new IntegrationError(result.error.message || 'Failed to send email via Resend', {
+        let errorMsg = result.error.message || 'Failed to send email via Resend';
+        if (this.#apiKey) errorMsg = errorMsg.replaceAll(this.#apiKey, '[REDACTED]');
+
+        throw new IntegrationError(errorMsg, {
           code: result.error.name ? result.error.name.toUpperCase() : 'PROVIDER_ERROR',
           statusCode: result.error.statusCode || 502,
           provider: 'resend',
@@ -165,7 +184,10 @@ export class ResendProvider extends EmailProvider {
         throw error;
       }
 
-      throw new IntegrationError(error?.message || 'Failed to send email via Resend', {
+      let errorMsg = error?.message || 'Failed to send email via Resend';
+      if (this.#apiKey) errorMsg = errorMsg.replaceAll(this.#apiKey, '[REDACTED]');
+
+      throw new IntegrationError(errorMsg, {
         code: 'PROVIDER_ERROR',
         statusCode: 502,
         provider: 'resend',

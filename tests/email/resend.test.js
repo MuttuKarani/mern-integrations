@@ -87,6 +87,11 @@ describe('EmailProvider & Resend Integration', () => {
   });
 
   describe('ResendProvider Constructor', () => {
+    test('should throw ValidationError if config is not a valid object', () => {
+      expect(() => new ResendProvider(null)).toThrow(ValidationError);
+      expect(() => new ResendProvider('invalid')).toThrow(ValidationError);
+    });
+
     test('should throw ValidationError if apiKey is missing, empty, or whitespace', () => {
       expect(() => new ResendProvider({})).toThrow(ValidationError);
       expect(() => new ResendProvider({ apiKey: '' })).toThrow(ValidationError);
@@ -98,6 +103,15 @@ describe('EmailProvider & Resend Integration', () => {
       expect(p).toBeInstanceOf(ResendProvider);
       expect(p.name).toBe('resend');
       expect(p.client).toBe(mockClient);
+    });
+
+    test('should not expose apiKey in Object.keys() or JSON.stringify()', () => {
+      const keys = Object.keys(provider);
+      expect(keys).not.toContain('apiKey');
+      expect(keys).not.toContain('#apiKey');
+
+      const serialized = JSON.stringify(provider);
+      expect(serialized).not.toContain(mockApiKey);
     });
   });
 

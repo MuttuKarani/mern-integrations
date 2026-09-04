@@ -86,6 +86,11 @@ describe('SMSProvider & MSG91 Integration', () => {
   });
 
   describe('MSG91Provider Constructor', () => {
+    test('should throw ValidationError if config is not a valid object', () => {
+      expect(() => new MSG91Provider(null)).toThrow(ValidationError);
+      expect(() => new MSG91Provider('invalid')).toThrow(ValidationError);
+    });
+
     test('should throw ValidationError if authKey is missing, empty, or whitespace', () => {
       expect(() => new MSG91Provider({})).toThrow(ValidationError);
       expect(() => new MSG91Provider({ authKey: '' })).toThrow(ValidationError);
@@ -103,6 +108,28 @@ describe('SMSProvider & MSG91 Integration', () => {
         fetch: mockFetch
       });
       expect(p2).toBeInstanceOf(MSG91Provider);
+    });
+
+    test('should not expose authKey in Object.keys() or JSON.stringify()', () => {
+      const keys = Object.keys(provider);
+      expect(keys).not.toContain('authKey');
+      expect(keys).not.toContain('#authKey');
+
+      const serialized = JSON.stringify(provider);
+      expect(serialized).not.toContain(mockAuthKey);
+    });
+
+    test('should redact authKey in thrown error messages', async () => {
+      mockFetch.mockRejectedValueOnce(new Error(`Failed to connect with key ${mockAuthKey}`));
+
+      try {
+        await provider.sendOTP({ mobile: '919999999999' });
+        expect(true).toBe(false);
+      } catch (err) {
+        expect(err).toBeInstanceOf(IntegrationError);
+        expect(err.message).not.toContain(mockAuthKey);
+        expect(err.message).toContain('[REDACTED]');
+      }
     });
   });
 

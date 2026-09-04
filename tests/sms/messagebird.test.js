@@ -26,6 +26,11 @@ describe('MessageBirdProvider & WhatsApp / SMS Integration', () => {
   });
 
   describe('Constructor & Credentials Validation', () => {
+    test('should throw ValidationError if config is not a valid object', () => {
+      expect(() => new MessageBirdProvider(null)).toThrow(ValidationError);
+      expect(() => new MessageBirdProvider('invalid')).toThrow(ValidationError);
+    });
+
     test('should throw ValidationError if apiKey is missing, empty, or whitespace', () => {
       expect(() => new MessageBirdProvider({})).toThrow(ValidationError);
       expect(() => new MessageBirdProvider({ apiKey: '' })).toThrow(ValidationError);
@@ -42,7 +47,21 @@ describe('MessageBirdProvider & WhatsApp / SMS Integration', () => {
     test('private credentials should not be exposed on instance properties', () => {
       expect(provider.apiKey).toBeUndefined();
       expect(provider['#apiKey']).toBeUndefined();
+      expect(Object.keys(provider)).not.toContain('apiKey');
       expect(JSON.stringify(provider)).not.toContain(mockApiKey);
+    });
+
+    test('should redact apiKey in thrown error messages', async () => {
+      mockFetch.mockRejectedValueOnce(new Error(`Failed to connect with key ${mockApiKey}`));
+
+      try {
+        await provider.sendSMS({ to: '31612345678', message: 'Hello' });
+        expect(true).toBe(false);
+      } catch (err) {
+        expect(err).toBeInstanceOf(IntegrationError);
+        expect(err.message).not.toContain(mockApiKey);
+        expect(err.message).toContain('[REDACTED]');
+      }
     });
   });
 
