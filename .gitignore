@@ -17,6 +17,9 @@ logs/
 coverage/
 .nyc_output/
 
+# Package tarballs
+*.tgz
+
 # IDE & Editor files
 .vscode/
 .idea/
