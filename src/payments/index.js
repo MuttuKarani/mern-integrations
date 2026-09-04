@@ -1,3 +1,5 @@
 export { PaymentProvider } from './interfaces/PaymentProvider.js';
 export { RazorpayProvider } from './providers/razorpay/RazorpayProvider.js';
+export { CCAvenueProvider } from './providers/ccavenue/CCAvenueProvider.js';
 export { createPaymentProvider } from './factories/PaymentFactory.js';
+export * as ccavenueCrypto from './providers/ccavenue/ccavenue.crypto.js';

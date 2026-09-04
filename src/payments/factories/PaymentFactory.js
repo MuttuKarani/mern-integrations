@@ -1,4 +1,5 @@
 import { RazorpayProvider } from '../providers/razorpay/RazorpayProvider.js';
+import { CCAvenueProvider } from '../providers/ccavenue/CCAvenueProvider.js';
 import { IntegrationError } from '../../core/errors/IntegrationError.js';
 import { ValidationError } from '../../core/errors/ValidationError.js';
 import { validateRequiredObject, validateRequiredString } from '../../core/utils/validators.js';
@@ -7,12 +8,17 @@ import { validateRequiredObject, validateRequiredString } from '../../core/utils
  * Factory function to instantiate payment provider instances based on configuration.
  *
  * @param {Object} config - Configuration object.
- * @param {string} config.provider - Provider name identifier ('razorpay').
- * @param {string} [config.keyId] - API Key / ID for provider.
- * @param {string} [config.keySecret] - API Key Secret for provider.
+ * @param {string} config.provider - Provider name identifier ('razorpay', 'ccavenue').
+ * @param {string} [config.keyId] - API Key / ID for Razorpay.
+ * @param {string} [config.keySecret] - API Key Secret for Razorpay.
  * @param {string} [config.webhookSecret] - Webhook signing secret.
+ * @param {string} [config.merchantId] - Merchant ID for CCAvenue.
+ * @param {string} [config.accessCode] - Access Code for CCAvenue.
+ * @param {string} [config.workingKey] - Working Key for CCAvenue.
+ * @param {string} [config.baseUrl] - Custom base gateway URL.
+ * @param {boolean} [config.testMode] - Test mode flag.
  * @param {Object} [config.client] - Pre-instantiated SDK client (optional, for testing).
- * @returns {RazorpayProvider}
+ * @returns {RazorpayProvider|CCAvenueProvider}
  * @throws {ValidationError} If config or provider name is invalid.
  * @throws {IntegrationError} If the specified provider is not supported.
  */
@@ -26,9 +32,12 @@ export function createPaymentProvider(config) {
     case 'razorpay':
       return new RazorpayProvider(config);
 
+    case 'ccavenue':
+      return new CCAvenueProvider(config);
+
     default:
       throw new IntegrationError(
-        `Unsupported payment provider '${config.provider}'. Supported providers: razorpay`,
+        `Unsupported payment provider '${config.provider}'. Supported providers: razorpay, ccavenue`,
         {
           code: 'UNSUPPORTED_PROVIDER',
           statusCode: 400,

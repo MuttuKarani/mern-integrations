@@ -6,4 +6,6 @@ export * from './core/utils/validators.js';
 // Payments module
 export { PaymentProvider } from './payments/interfaces/PaymentProvider.js';
 export { RazorpayProvider } from './payments/providers/razorpay/RazorpayProvider.js';
+export { CCAvenueProvider } from './payments/providers/ccavenue/CCAvenueProvider.js';
 export { createPaymentProvider } from './payments/factories/PaymentFactory.js';
+export * as ccavenueCrypto from './payments/providers/ccavenue/ccavenue.crypto.js';

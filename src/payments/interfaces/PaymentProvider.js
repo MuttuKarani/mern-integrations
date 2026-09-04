@@ -17,13 +17,9 @@ export class PaymentProvider {
   }
 
   /**
-   * Creates a payment order on the provider gateway.
+   * Creates a payment order on the provider gateway (or generates initiation descriptor).
    *
    * @param {Object} params
-   * @param {number} params.amount - Amount in smallest currency unit (e.g., paise for INR).
-   * @param {string} params.currency - 3-letter ISO currency code (e.g., 'INR', 'USD').
-   * @param {string} [params.receipt] - Unique internal order/receipt identifier.
-   * @param {Object} [params.notes] - Key-value metadata.
    * @returns {Promise<{success: boolean, provider: string, data: Object}>}
    * @abstract
    */
@@ -34,7 +30,17 @@ export class PaymentProvider {
   }
 
   /**
-   * Cryptographically verifies the payment signature received after checkout.
+   * Initiates payment for gateways (defaults to createOrder for API-based gateways).
+   *
+   * @param {Object} params
+   * @returns {Promise<{success: boolean, provider: string, data: Object}>}
+   */
+  async initiatePayment(params) {
+    return this.createOrder(params);
+  }
+
+  /**
+   * Cryptographically verifies the payment signature / response received after checkout.
    *
    * @param {Object} params - Verification parameters specific to the provider.
    * @returns {Promise<{success: boolean, provider: string, data: Object}>}
@@ -47,12 +53,19 @@ export class PaymentProvider {
   }
 
   /**
+   * Verifies an incoming redirect callback from the payment gateway (defaults to verifyPayment).
+   *
+   * @param {Object} params
+   * @returns {Promise<{success: boolean, provider: string, data: Object}>}
+   */
+  async verifyCallback(params) {
+    return this.verifyPayment(params);
+  }
+
+  /**
    * Processes a full or partial refund for a payment.
    *
    * @param {Object} params
-   * @param {string} params.paymentId - Provider transaction/payment ID.
-   * @param {number} [params.amount] - Amount in smallest currency unit to refund.
-   * @param {Object} [params.notes] - Key-value metadata.
    * @returns {Promise<{success: boolean, provider: string, data: Object}>}
    * @abstract
    */
@@ -63,12 +76,9 @@ export class PaymentProvider {
   }
 
   /**
-   * Cryptographically verifies incoming webhook signatures using the raw HTTP request payload.
+   * Cryptographically verifies incoming server-to-server webhook signatures using the raw HTTP request payload.
    *
    * @param {Object} params
-   * @param {string|Buffer} params.payload - Raw unmodified request payload body.
-   * @param {string} params.signature - Webhook signature header value.
-   * @param {string} [params.secret] - Optional override webhook secret.
    * @returns {Promise<{success: boolean, provider: string, data: Object}>}
    * @abstract
    */

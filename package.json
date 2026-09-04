@@ -8,7 +8,8 @@
   "scripts": {
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
-    "example:razorpay": "node examples/razorpay-example.js"
+    "example:razorpay": "node examples/razorpay-example.js",
+    "example:ccavenue": "node examples/ccavenue-example.js"
   },
   "keywords": [
     "mern",
