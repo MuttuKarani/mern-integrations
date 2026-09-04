@@ -113,7 +113,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1126.0",
     "cloudinary": "^2.11.0",
     "dotenv": "^16.4.7",
-    "jest": "^29.7.0",
+    "jest": "^30.5.1",
     "nodemailer": "^10.0.0",
     "razorpay": "^2.9.5",
     "resend": "^6.26.0",
