@@ -32,11 +32,18 @@ A modular, reusable backend integration library for MERN stack applications. Thi
 - [9. Storage Providers](#9-storage-providers)
   - [Cloudinary Integration](#cloudinary-integration)
   - [AWS S3 Integration](#aws-s3-integration)
-- [10. Error Handling & Response Normalization](#10-error-handling--response-normalization)
+- [10. Error Handling & Capability Introspection](#10-error-handling--capability-introspection)
+  - [Structured Error Classes](#structured-error-classes)
+  - [Standard Error Codes & Failure Categories](#standard-error-codes--failure-categories)
+  - [Provider Capabilities Contract](#provider-capabilities-contract)
+  - [Webhook Raw Body Security Notice](#webhook-raw-body-security-notice)
 - [11. Example Scripts](#11-example-scripts)
 - [12. Testing & Test Coverage](#12-testing--test-coverage)
 - [13. CI/CD & Quality Gates](#13-cicd--quality-gates)
 - [14. Development & Packaging Workflow](#14-development--packaging-workflow)
+- [15. Developer Onboarding Guide](#15-developer-onboarding-guide)
+  - [Getting Started](#getting-started)
+  - [Adding a New Provider](#adding-a-new-provider)
 
 ---
 
@@ -129,19 +136,26 @@ mern-integrations/
 │   └── index.js                          # Root package entry point
 │
 ├── examples/
-│   ├── razorpay-example.js               # Razorpay usage example
-│   ├── ccavenue-example.js               # CCAvenue usage example
-│   ├── stripe-example.js                 # Stripe usage example
-│   ├── resend-example.js                 # Resend usage example
-│   ├── nodemailer-example.js             # Nodemailer usage example
-│   ├── ses-example.js                    # Amazon SES usage example
-│   ├── msg91-example.js                  # MSG91 SMS & OTP usage example
-│   ├── messagebird-example.js            # MessageBird SMS & WhatsApp example
-│   ├── cloudinary-example.js             # Cloudinary storage usage example
-│   └── s3-example.js                     # AWS S3 storage usage example
+│   ├── README.md                         # Examples guide & environment variable matrix
+│   ├── payments/
+│   │   ├── razorpay.example.js           # Razorpay payment & webhook example
+│   │   ├── stripe.example.js             # Stripe PaymentIntents & refund example
+│   │   └── ccavenue.example.js           # CCAvenue redirect descriptor & callback example
+│   ├── email/
+│   │   ├── resend.example.js             # Resend transactional email example
+│   │   ├── nodemailer.example.js         # Nodemailer SMTP & verify example
+│   │   └── ses.example.js                # Amazon SES email example
+│   ├── sms/
+│   │   ├── msg91.example.js              # MSG91 flow SMS & OTP example
+│   │   └── messagebird.example.js        # MessageBird SMS & WhatsApp template example
+│   └── storage/
+│       ├── cloudinary.example.js         # Cloudinary buffer upload & URL generation
+│       └── s3.example.js                 # AWS S3 buffer upload & pre-signed URL example
 │
 ├── tests/
 │   ├── index.test.js                     # Root exports and submodule tests
+│   ├── core/
+│   │   └── dependencies.test.js          # Optional dependencies & lazy-loading tests
 │   ├── payments/
 │   │   ├── razorpay.test.js              # Razorpay unit tests with SDK mocks
 │   │   ├── ccavenue.test.js              # CCAvenue unit tests with crypto vectors
@@ -168,8 +182,55 @@ mern-integrations/
 ## 3. Installation & Setup
 
 ### Requirements
-- **Node.js**: `>= 18.0.0` (ES Modules required)
+- **Node.js**: `>= 18.0.0` (Native ES Modules required)
 - **NPM**: `>= 9.0.0`
+
+### Quick Start (e.g. Razorpay + Resend Stack)
+
+If your application only needs **Razorpay** for payments and **Resend** for transactional emails, install only those two SDKs:
+
+```bash
+npm install mern-integrations razorpay resend
+```
+
+Then initialize and use your providers without needing uninstalled SDKs:
+
+```javascript
+import { createPaymentProvider, createEmailProvider } from 'mern-integrations';
+
+// 1. Initialize Razorpay Payment Gateway
+const payment = createPaymentProvider({
+  provider: 'razorpay',
+  keyId: process.env.RAZORPAY_KEY_ID,
+  keySecret: process.env.RAZORPAY_KEY_SECRET,
+  webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET
+});
+
+// 2. Initialize Resend Email Service
+const email = createEmailProvider({
+  provider: 'resend',
+  apiKey: process.env.RESEND_API_KEY
+});
+
+// 3. Create an Order & Send Confirmation
+async function processOrder(customer) {
+  // Amount in paise: ₹499.00 = 49900 paise
+  const order = await payment.createOrder({
+    amount: 49900,
+    currency: 'INR',
+    receipt: `rcpt_${Date.now()}`
+  });
+
+  await email.send({
+    from: 'Acme Store <orders@acmestore.dev>',
+    to: customer.email,
+    subject: 'Order Initiated',
+    html: `<h2>Order Created</h2><p>Your order ID is: ${order.data.id}</p>`
+  });
+
+  return order;
+}
+```
 
 ### Install Only What You Need
 
@@ -1370,59 +1431,121 @@ const deleteResult = await s3.delete({
 
 ---
 
-## 10. Error Handling & Response Normalization
+## 10. Error Handling & Capability Introspection
 
-All public methods throw structured errors inheriting from `IntegrationError` or `ValidationError`:
+### Structured Error Classes
+
+All public methods throw structured, strongly-typed errors inheriting from either `ValidationError` or `IntegrationError`:
 
 ```javascript
 import { IntegrationError, ValidationError } from 'mern-integrations';
 
 try {
-  await storage.upload({ file: '' });
+  const result = await payment.createOrder({
+    amount: 50000,
+    currency: 'INR'
+  });
 } catch (error) {
   if (error instanceof ValidationError) {
-    console.error('Validation error:', error.toJSON());
+    // Client input validation failed before dispatching network requests
+    console.error('Validation Error:', error.message, error.details);
   } else if (error instanceof IntegrationError) {
-    console.error('Provider error:', error.toJSON());
+    // Gateway, authentication, or missing dependency error
+    console.error(`Integration Error [${error.code}] (HTTP ${error.statusCode}):`, error.message);
+    console.error('Provider:', error.provider);
+  } else {
+    // Unexpected system error
+    console.error('Unexpected error:', error);
   }
 }
+```
+
+### Standard Error Codes & Failure Categories
+
+The library clearly distinguishes between 3 failure categories:
+
+| Failure Category | Example Scenario | Thrown Error Class | Error Code | HTTP Status |
+|---|---|---|---|---|
+| **A. Unsupported Provider** | `createPaymentProvider({ provider: 'paypal' })` | `IntegrationError` | `UNSUPPORTED_PROVIDER` | `400` |
+| **B. Missing Optional SDK** | Calling `stripe.createOrder()` without `npm install stripe` | `IntegrationError` | `MISSING_PROVIDER_DEPENDENCY` | `500` |
+| **C. Input Validation** | Missing `amount` or negative integer | `ValidationError` | `VALIDATION_ERROR` | `400` |
+| **C. Gateway Auth Failure** | Invalid API keys or secret tokens | `IntegrationError` | `AUTHENTICATION_ERROR` | `401` / `403` |
+| **C. Rate Limit Exceeded** | Provider rate limit hit | `IntegrationError` | `RATE_LIMIT_EXCEEDED` | `429` |
+| **C. Unsupported Method** | Calling `mb.sendOTP()` (unsupported on MessageBird) | `IntegrationError` | `UNSUPPORTED_OPERATION` | `501` |
+| **C. Upstream Provider Failure** | Provider returned 502/503/timeout | `IntegrationError` | `PROVIDER_ERROR` | `500` / `502` / `504` |
+
+### Provider Capabilities Contract
+
+All concrete provider instances expose an immutable, read-only `capabilities` getter returning an array of supported operation names:
+
+```javascript
+import { createPaymentProvider } from 'mern-integrations';
+
+const payment = createPaymentProvider({
+  provider: 'razorpay',
+  keyId: process.env.RAZORPAY_KEY_ID,
+  keySecret: process.env.RAZORPAY_KEY_SECRET
+});
+
+// Check whether optional operations are supported before invoking:
+if (payment.capabilities.includes('refund')) {
+  const refundResult = await payment.refund({
+    paymentId: 'pay_12345',
+    amount: 1000
+  });
+} else {
+  console.log(`Provider '${payment.name}' does not support automated refunds.`);
+}
+```
+
+### Webhook Raw Body Security Notice
+
+> **Security Warning:** Cryptographic webhook verification (for Stripe and Razorpay) requires the **exact, unmodified raw request body string or Buffer** (`req.body`).
+> Parsing the body with standard JSON middleware (`express.json()`) mutates whitespace and key order, causing HMAC signature verification to fail. Configure raw body parsing for webhook endpoints:
+
+```javascript
+// Express raw body capture example:
+app.post(
+  '/api/webhooks/stripe',
+  express.raw({ type: 'application/json' }),
+  async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    const result = await stripe.verifyWebhook({
+      payload: req.body, // Must be Buffer or raw string
+      signature: sig
+    });
+    if (result.data.verified) {
+      res.json({ received: true });
+    } else {
+      res.status(400).send('Invalid signature');
+    }
+  }
+);
 ```
 
 ---
 
 ## 11. Example Scripts
 
-Run the standalone example scripts:
+Complete, runnable examples are organized under the [`examples/`](./examples) directory. See [`examples/README.md`](./examples/README.md) for environment variables and full instructions.
 
 ```bash
-# Run Razorpay payment example
+# Payments
 npm run example:razorpay
-
-# Run CCAvenue payment example
+npm run example:stripe
 npm run example:ccavenue
 
-# Run Stripe payment example
-npm run example:stripe
-
-# Run Resend email example
+# Email
 npm run example:resend
-
-# Run Nodemailer SMTP email example
 npm run example:nodemailer
-
-# Run Amazon SES email example
 npm run example:ses
 
-# Run MSG91 SMS & OTP example
+# SMS / WhatsApp
 npm run example:msg91
-
-# Run MessageBird WhatsApp & SMS example
 npm run example:messagebird
 
-# Run Cloudinary storage example
+# Storage
 npm run example:cloudinary
-
-# Run AWS S3 storage example
 npm run example:s3
 ```
 
@@ -1430,7 +1553,7 @@ npm run example:s3
 
 ## 12. Testing & Test Coverage
 
-The test suite uses **Jest** with experimental ES Module support. All gateway SDKs, network transports, and AWS/Cloudinary APIs are 100% mocked with verified cryptographic reference test vectors to ensure deterministic, zero-network-leak test execution.
+The test suite uses **Jest** with native ES Module support. All external provider SDKs, network transports, and cloud services are 100% mocked with zero live network calls:
 
 ```bash
 # Run all unit tests
@@ -1445,36 +1568,26 @@ npm run test:watch
 
 ### Coverage Quality Gates
 
-Jest is configured with strict coverage thresholds to guard against quality regressions:
-
 | Metric | Configured Threshold | Baseline Achievement |
 |---|---|---|
-| **Statements** | `>= 90%` | `~95.5%` |
-| **Branches** | `>= 75%` | `~80.9%` |
-| **Functions** | `>= 90%` | `~95.5%` |
-| **Lines** | `>= 90%` | `~95.5%` |
-
-> **Note on Branch Coverage:** Branch coverage threshold is set to 75% to account for abstract interface base classes (which contain defensive guard branches and intentional runtime throw methods) and provider fallback status code handling.
-
-Coverage reports are generated in multiple formats under the `coverage/` directory:
-- `text` & `text-summary`: Console output during test runs
-- `lcov` (`lcov-report/index.html`): Detailed browser-viewable visual report
-- `json-summary`: Machine-readable summary for CI integration
+| **Statements** | `>= 90%` | `~92.9%` |
+| **Branches** | `>= 75%` | `~79.8%` |
+| **Functions** | `>= 90%` | `~92.3%` |
+| **Lines** | `>= 90%` | `~92.9%` |
 
 ---
 
 ## 13. CI/CD & Quality Gates
 
-The repository includes a GitHub Actions Continuous Integration workflow located at `.github/workflows/ci.yml`.
+The repository includes a GitHub Actions Continuous Integration pipeline located at `.github/workflows/ci.yml`.
 
-### Workflow Pipeline:
-1. **Triggering Events**: Triggers on `push` to `master`, `main`, `ci-quality`, feature/fix branches, and on `pull_request` targeting `master` or `main`.
-2. **Node.js LTS Matrix**: Tests across supported Node.js LTS versions (`18.x`, `20.x`, `22.x`).
-3. **Clean Dependency Installation**: Executes `npm ci` leveraging npm caching.
-4. **Unit Test Execution**: Runs `npm test` across all provider suites.
-5. **Coverage Quality Gate**: Executes `npm run test:coverage` and fails the pipeline if thresholds are not met.
-6. **Security Vulnerability Audit**: Runs `npm audit --audit-level=high`.
-7. **Package Packaging Validation**: Verifies tarball packing via `npm pack --dry-run`.
+### Pipeline Stages:
+1. **Node.js LTS Matrix**: Tests across `18.x`, `20.x`, and `22.x`.
+2. **Clean Install**: Executes `npm ci` leveraging npm cache.
+3. **Unit Tests**: Runs `npm test` across all provider test suites.
+4. **Coverage Enforcement**: Executes `npm run test:coverage` and validates thresholds.
+5. **Security Audit**: Runs `npm audit --audit-level=high`.
+6. **Package Verification**: Validates tarball packaging with `npm pack --dry-run`.
 
 ---
 
@@ -1492,7 +1605,7 @@ This verifies that only runtime files (`src/`), `README.md`, and `LICENSE` are b
 
 ### Local Integration in a MERN Application
 
-To integrate `mern-integrations` into your local Express/MERN backend service prior to public registry publication:
+To integrate `mern-integrations` into your local Express/MERN backend service:
 
 ```bash
 # In your backend service project root:
@@ -1501,3 +1614,72 @@ npm install /path/to/mern-integrations
 cd /path/to/mern-integrations && npm link
 cd /path/to/your-mern-backend && npm link mern-integrations
 ```
+
+---
+
+## 15. Developer Onboarding Guide
+
+### Getting Started
+
+1. **Clone the Repository:**
+   ```bash
+   git clone https://github.com/MuttuKarani/mern-integrations.git
+   cd mern-integrations
+   ```
+
+2. **Install Development Dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Run the Full Test Suite:**
+   ```bash
+   npm test
+   ```
+
+4. **Verify Test Coverage:**
+   ```bash
+   npm run test:coverage
+   ```
+
+5. **Run Security Audit:**
+   ```bash
+   npm audit
+   ```
+
+6. **Run Example Scripts:**
+   ```bash
+   npm run example:razorpay
+   npm run example:resend
+   ```
+
+### Adding a New Provider
+
+To add a new integration provider (e.g., a new payment gateway or SMS service), follow this systematic architectural workflow:
+
+1. **Extend Domain Base Class**:
+   - Create a new provider class extending `PaymentProvider`, `EmailProvider`, `SMSProvider`, or `StorageProvider`.
+   - Implement the `capabilities` getter returning an immutable array of supported method names.
+
+2. **Implement Private Credential Encapsulation**:
+   - Use private class fields (`#apiKey`, `#secretKey`) to guarantee secrets are never leaked via `Object.keys()` or `JSON.stringify()`.
+
+3. **Implement Safe Lazy Loading**:
+   - Do NOT use top-level static imports for third-party SDKs.
+   - Use `loadOptionalDependency(packageName, providerName, this.#loader)` to dynamically load SDKs only when operations are invoked.
+
+4. **Normalize Responses & Handle Errors**:
+   - Return responses wrapped in `this.normalizeSuccess(data)`.
+   - Normalize upstream exceptions into `IntegrationError` instances with appropriate `code` and `statusCode`. Redact credentials from error messages.
+
+5. **Register in Factory**:
+   - Update the respective factory (`PaymentFactory`, `EmailFactory`, etc.) to recognize the provider name and aliases case-insensitively with whitespace trimming.
+
+6. **Export in Submodule & Root**:
+   - Export the new provider class in `src/<domain>/index.js` and `src/index.js`.
+
+7. **Add Comprehensive Mocked Unit Tests**:
+   - Add unit tests under `tests/<domain>/<provider>.test.js`. Mock all external SDK calls and verify credential redaction.
+
+8. **Add Example Script & Documentation**:
+   - Add an example in `examples/<domain>/<provider>.example.js` and document it in `examples/README.md` and `README.md`.
