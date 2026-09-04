@@ -271,26 +271,25 @@ describe('RazorpayProvider & Payment Architecture', () => {
       });
     });
 
-    test('should return verified: false for invalid or tampered payment signature', async () => {
+    test('should return verified: false safely when signature length is different (preventing timingSafeEqual RangeError)', async () => {
       const orderId = 'order_9A33XWu170gUtm';
       const paymentId = 'pay_29AeHIbxDuFam1';
-      const invalidSignature = 'tampered_or_invalid_signature_hex';
 
-      const response = await provider.verifyPayment({
+      // Very short signature (different length)
+      const shortSigResult = await provider.verifyPayment({
         razorpayOrderId: orderId,
         razorpayPaymentId: paymentId,
-        razorpaySignature: invalidSignature
+        razorpaySignature: 'short'
       });
+      expect(shortSigResult.data.verified).toBe(false);
 
-      expect(response).toEqual({
-        success: true,
-        provider: 'razorpay',
-        data: {
-          verified: false,
-          orderId,
-          paymentId
-        }
+      // Very long signature (different length)
+      const longSigResult = await provider.verifyPayment({
+        razorpayOrderId: orderId,
+        razorpayPaymentId: paymentId,
+        razorpaySignature: 'a'.repeat(128)
       });
+      expect(longSigResult.data.verified).toBe(false);
     });
   });
 
@@ -310,7 +309,7 @@ describe('RazorpayProvider & Payment Architecture', () => {
       ).rejects.toThrow(ValidationError);
     });
 
-    test('should successfully process a refund with mock SDK', async () => {
+    test('should successfully process a partial refund with mock SDK', async () => {
       const mockRefundResponse = {
         id: 'rfnd_D8bY93yXmZq12',
         entity: 'refund',
@@ -352,6 +351,29 @@ describe('RazorpayProvider & Payment Architecture', () => {
           raw: mockRefundResponse
         }
       });
+    });
+
+    test('should successfully process a full refund (without amount parameter)', async () => {
+      const mockFullRefundResponse = {
+        id: 'rfnd_Full123',
+        entity: 'refund',
+        amount: 1000,
+        currency: 'INR',
+        payment_id: 'pay_29AeHIbxDuFam1',
+        status: 'processed',
+        notes: {},
+        created_at: 1672532100
+      };
+
+      mockClient.payments.refund.mockResolvedValueOnce(mockFullRefundResponse);
+
+      const result = await provider.refund({
+        paymentId: 'pay_29AeHIbxDuFam1'
+      });
+
+      expect(mockClient.payments.refund).toHaveBeenCalledWith('pay_29AeHIbxDuFam1', {});
+      expect(result.data.id).toBe('rfnd_Full123');
+      expect(result.data.amount).toBe(1000);
     });
 
     test('should convert Razorpay refund SDK error into IntegrationError', async () => {
@@ -401,6 +423,22 @@ describe('RazorpayProvider & Payment Architecture', () => {
       ).rejects.toThrow(ValidationError);
     });
 
+    test('should allow overriding webhook secret via method parameter', async () => {
+      const customSecret = 'customOverriddenSecret999';
+      const customSignature = crypto
+        .createHmac('sha256', customSecret)
+        .update(rawPayload)
+        .digest('hex');
+
+      const result = await provider.verifyWebhook({
+        payload: rawPayload,
+        signature: customSignature,
+        secret: customSecret
+      });
+
+      expect(result.data.verified).toBe(true);
+    });
+
     test('should verify valid webhook signature for raw string payload', async () => {
       const validWebhookSignature = crypto
         .createHmac('sha256', mockWebhookSecret)
@@ -442,7 +480,7 @@ describe('RazorpayProvider & Payment Architecture', () => {
       });
     });
 
-    test('should return verified: false for invalid webhook signature', async () => {
+    test('should return verified: false for invalid webhook signature or different length', async () => {
       const invalidWebhookSignature = 'invalid_webhook_signature_hex';
 
       const result = await provider.verifyWebhook({
@@ -455,6 +493,53 @@ describe('RazorpayProvider & Payment Architecture', () => {
         provider: 'razorpay',
         data: {
           verified: false
+        }
+      });
+
+      // Short signature
+      const shortResult = await provider.verifyWebhook({
+        payload: rawPayload,
+        signature: 'tooshort'
+      });
+      expect(shortResult.data.verified).toBe(false);
+    });
+  });
+
+  describe('Error Classes & Serialization', () => {
+    test('IntegrationError toJSON should format properly', () => {
+      const err = new IntegrationError('General failure', {
+        code: 'GEN_FAIL',
+        statusCode: 502,
+        provider: 'razorpay',
+        details: { step: 'init' }
+      });
+
+      expect(err.toJSON()).toEqual({
+        success: false,
+        provider: 'razorpay',
+        error: {
+          code: 'GEN_FAIL',
+          message: 'General failure',
+          details: { step: 'init' }
+        }
+      });
+    });
+
+    test('ValidationError toJSON should default to status 400 and VALIDATION_ERROR code', () => {
+      const err = new ValidationError('Invalid amount', {
+        provider: 'razorpay',
+        details: { field: 'amount' }
+      });
+
+      expect(err.statusCode).toBe(400);
+      expect(err.code).toBe('VALIDATION_ERROR');
+      expect(err.toJSON()).toEqual({
+        success: false,
+        provider: 'razorpay',
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid amount',
+          details: { field: 'amount' }
         }
       });
     });
