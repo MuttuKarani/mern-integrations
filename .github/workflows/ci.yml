@@ -1,0 +1,50 @@
+name: CI & Quality Gates
+
+on:
+  push:
+    branches:
+      - master
+      - main
+      - ci-quality
+      - 'feature/**'
+      - 'fix/**'
+  pull_request:
+    branches:
+      - master
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test & Coverage (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Provider Test Suite
+        run: npm test
+
+      - name: Run Test Coverage & Enforce Quality Gates
+        run: npm run test:coverage
+
+      - name: Security Vulnerability Audit
+        run: npm audit --audit-level=high
+
+      - name: Verify Package Packing Integrity
+        run: npm pack --dry-run

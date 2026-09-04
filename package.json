@@ -1,12 +1,28 @@
 {
   "name": "mern-integrations",
   "version": "1.0.0",
-  "description": "Reusable backend integration library for MERN stack applications",
+  "description": "Unified, production-ready backend integration library for MERN stack applications covering Payments, Email, SMS/OTP, and Storage",
   "type": "module",
-  "private": true,
-  "main": "src/index.js",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./payments": "./src/payments/index.js",
+    "./email": "./src/email/index.js",
+    "./sms": "./src/sms/index.js",
+    "./storage": "./src/storage/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "example:razorpay": "node examples/razorpay-example.js",
     "example:ccavenue": "node examples/ccavenue-example.js",
@@ -23,10 +39,24 @@
     "mern",
     "integration",
     "payments",
-    "razorpay"
+    "email",
+    "sms",
+    "otp",
+    "storage",
+    "razorpay",
+    "ccavenue",
+    "stripe",
+    "resend",
+    "nodemailer",
+    "ses",
+    "msg91",
+    "messagebird",
+    "cloudinary",
+    "s3",
+    "aws"
   ],
   "author": "",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1126.0",
     "@aws-sdk/client-ses": "^3.1126.0",

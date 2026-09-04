@@ -34,7 +34,9 @@ A modular, reusable backend integration library for MERN stack applications. Thi
   - [AWS S3 Integration](#aws-s3-integration)
 - [10. Error Handling & Response Normalization](#10-error-handling--response-normalization)
 - [11. Example Scripts](#11-example-scripts)
-- [12. Testing Instructions](#12-testing-instructions)
+- [12. Testing & Test Coverage](#12-testing--test-coverage)
+- [13. CI/CD & Quality Gates](#13-cicd--quality-gates)
+- [14. Development & Packaging Workflow](#14-development--packaging-workflow)
 
 ---
 
@@ -55,6 +57,10 @@ In standard MERN applications, integrating third-party services directly into co
 
 ```
 mern-integrations/
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml                    # GitHub Actions CI matrix workflow
 │
 ├── src/
 │   │
@@ -98,12 +104,12 @@ mern-integrations/
 │   │
 │   ├── sms/
 │   │   ├── interfaces/
-│   │   │   └── SMSProvider.js            # Abstract base SMS & OTP class
+│   │   │   └── SMSProvider.js            # Abstract base SMS class
 │   │   ├── providers/
 │   │   │   ├── msg91/
 │   │   │   │   └── MSG91Provider.js      # MSG91 SMS & OTP implementation
 │   │   │   └── messagebird/
-│   │   │       └── MessageBirdProvider.js# MessageBird Conversations API
+│   │   │       └── MessageBirdProvider.js# MessageBird WhatsApp & SMS implementation
 │   │   ├── factories/
 │   │   │   └── SMSFactory.js             # SMS provider factory
 │   │   └── index.js                      # SMS module exports
@@ -135,6 +141,7 @@ mern-integrations/
 │   └── s3-example.js                     # AWS S3 storage usage example
 │
 ├── tests/
+│   ├── index.test.js                     # Root exports and submodule tests
 │   ├── payments/
 │   │   ├── razorpay.test.js              # Razorpay unit tests with SDK mocks
 │   │   ├── ccavenue.test.js              # CCAvenue unit tests with crypto vectors
@@ -152,6 +159,7 @@ mern-integrations/
 │
 ├── .env.example
 ├── .gitignore
+├── LICENSE
 ├── package.json
 ├── README.md
 └── jest.config.js
@@ -1304,14 +1312,76 @@ npm run example:s3
 
 ---
 
-## 12. Testing Instructions
+## 12. Testing & Test Coverage
 
-The test suite uses **Jest** with ES Module support. All gateway API calls and cryptographic flows are tested using mocks and verified reference vectors.
+The test suite uses **Jest** with experimental ES Module support. All gateway SDKs, network transports, and AWS/Cloudinary APIs are 100% mocked with verified cryptographic reference test vectors to ensure deterministic, zero-network-leak test execution.
 
 ```bash
-# Run all tests (Razorpay + CCAvenue + Stripe + Resend + Nodemailer + SES + MSG91 + MessageBird + Cloudinary + S3)
+# Run all unit tests
 npm test
 
-# Run tests in watch mode
+# Run tests with code coverage analysis & threshold enforcement
+npm run test:coverage
+
+# Run tests in interactive watch mode
 npm run test:watch
+```
+
+### Coverage Quality Gates
+
+Jest is configured with strict coverage thresholds to guard against quality regressions:
+
+| Metric | Configured Threshold | Baseline Achievement |
+|---|---|---|
+| **Statements** | `>= 90%` | `~95.5%` |
+| **Branches** | `>= 75%` | `~80.9%` |
+| **Functions** | `>= 90%` | `~95.5%` |
+| **Lines** | `>= 90%` | `~95.5%` |
+
+> **Note on Branch Coverage:** Branch coverage threshold is set to 75% to account for abstract interface base classes (which contain defensive guard branches and intentional runtime throw methods) and provider fallback status code handling.
+
+Coverage reports are generated in multiple formats under the `coverage/` directory:
+- `text` & `text-summary`: Console output during test runs
+- `lcov` (`lcov-report/index.html`): Detailed browser-viewable visual report
+- `json-summary`: Machine-readable summary for CI integration
+
+---
+
+## 13. CI/CD & Quality Gates
+
+The repository includes a GitHub Actions Continuous Integration workflow located at `.github/workflows/ci.yml`.
+
+### Workflow Pipeline:
+1. **Triggering Events**: Triggers on `push` to `master`, `main`, `ci-quality`, feature/fix branches, and on `pull_request` targeting `master` or `main`.
+2. **Node.js LTS Matrix**: Tests across supported Node.js LTS versions (`18.x`, `20.x`, `22.x`).
+3. **Clean Dependency Installation**: Executes `npm ci` leveraging npm caching.
+4. **Unit Test Execution**: Runs `npm test` across all provider suites.
+5. **Coverage Quality Gate**: Executes `npm run test:coverage` and fails the pipeline if thresholds are not met.
+6. **Security Vulnerability Audit**: Runs `npm audit --audit-level=high`.
+7. **Package Packaging Validation**: Verifies tarball packing via `npm pack --dry-run`.
+
+---
+
+## 14. Development & Packaging Workflow
+
+### Pre-Publication Packaging Verification
+
+To verify package contents before any future release without publishing:
+
+```bash
+npm pack --dry-run
+```
+
+This verifies that only runtime files (`src/`), `README.md`, and `LICENSE` are bundled, while sensitive development artifacts (`.env*`, `tests/`, `coverage/`, `examples/`) are completely excluded.
+
+### Local Integration in a MERN Application
+
+To integrate `mern-integrations` into your local Express/MERN backend service prior to public registry publication:
+
+```bash
+# In your backend service project root:
+npm install /path/to/mern-integrations
+# or using npm link:
+cd /path/to/mern-integrations && npm link
+cd /path/to/your-mern-backend && npm link mern-integrations
 ```
