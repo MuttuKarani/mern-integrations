@@ -63,6 +63,15 @@ export class CloudinaryProvider extends StorageProvider {
   }
 
   /**
+   * Returns a list of supported operations for Cloudinary.
+   *
+   * @returns {readonly string[]}
+   */
+  get capabilities() {
+    return Object.freeze(['upload', 'uploadBuffer', 'delete', 'getUrl']);
+  }
+
+  /**
    * Uploads a file (local path, remote URL, or base64/data URI) to Cloudinary.
    *
    * @param {Object} params

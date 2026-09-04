@@ -17,6 +17,15 @@ export class EmailProvider {
   }
 
   /**
+   * Returns a list of supported operations for this provider.
+   *
+   * @returns {readonly string[]}
+   */
+  get capabilities() {
+    return Object.freeze(['send']);
+  }
+
+  /**
    * Sends an email through the provider.
    *
    * @param {Object} params - Email transmission parameters.
@@ -25,6 +34,19 @@ export class EmailProvider {
    */
   async send(params) {
     throw new IntegrationError(`send() must be implemented by provider '${this.name}'`, {
+      provider: this.name
+    });
+  }
+
+  /**
+   * Verifies transport connection / authentication if supported by the provider.
+   *
+   * @returns {Promise<{success: boolean, provider: string, data: Object}>}
+   */
+  async verify() {
+    throw new IntegrationError(`verify() is not supported by provider '${this.name}'`, {
+      code: 'UNSUPPORTED_OPERATION',
+      statusCode: 501,
       provider: this.name
     });
   }

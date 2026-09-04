@@ -49,6 +49,15 @@ export class ResendProvider extends EmailProvider {
   }
 
   /**
+   * Returns a list of supported operations for Resend.
+   *
+   * @returns {readonly string[]}
+   */
+  get capabilities() {
+    return Object.freeze(['send']);
+  }
+
+  /**
    * Get the underlying Resend SDK client.
    * @returns {Resend}
    */

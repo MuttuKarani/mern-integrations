@@ -17,6 +17,15 @@ export class SMSProvider {
   }
 
   /**
+   * Returns a list of supported operations for this provider.
+   *
+   * @returns {readonly string[]}
+   */
+  get capabilities() {
+    return Object.freeze(['sendSMS']);
+  }
+
+  /**
    * Sends transactional or promotional SMS messages.
    *
    * @param {Object} params - SMS parameters.
@@ -34,10 +43,11 @@ export class SMSProvider {
    *
    * @param {Object} params - OTP generation parameters.
    * @returns {Promise<{success: boolean, provider: string, data: Object}>}
-   * @abstract
    */
   async sendOTP(params) {
-    throw new IntegrationError(`sendOTP() must be implemented by provider '${this.name}'`, {
+    throw new IntegrationError(`sendOTP() is not supported by provider '${this.name}'`, {
+      code: 'UNSUPPORTED_OPERATION',
+      statusCode: 501,
       provider: this.name
     });
   }
@@ -47,10 +57,11 @@ export class SMSProvider {
    *
    * @param {Object} params - Verification parameters (mobile, otp).
    * @returns {Promise<{success: boolean, provider: string, data: Object}>}
-   * @abstract
    */
   async verifyOTP(params) {
-    throw new IntegrationError(`verifyOTP() must be implemented by provider '${this.name}'`, {
+    throw new IntegrationError(`verifyOTP() is not supported by provider '${this.name}'`, {
+      code: 'UNSUPPORTED_OPERATION',
+      statusCode: 501,
       provider: this.name
     });
   }
@@ -60,10 +71,11 @@ export class SMSProvider {
    *
    * @param {Object} params - Retry parameters (mobile, retryType).
    * @returns {Promise<{success: boolean, provider: string, data: Object}>}
-   * @abstract
    */
   async resendOTP(params) {
-    throw new IntegrationError(`resendOTP() must be implemented by provider '${this.name}'`, {
+    throw new IntegrationError(`resendOTP() is not supported by provider '${this.name}'`, {
+      code: 'UNSUPPORTED_OPERATION',
+      statusCode: 501,
       provider: this.name
     });
   }
@@ -73,10 +85,11 @@ export class SMSProvider {
    *
    * @param {Object} params - WhatsApp parameters.
    * @returns {Promise<{success: boolean, provider: string, data: Object}>}
-   * @abstract
    */
   async sendWhatsApp(params) {
-    throw new IntegrationError(`sendWhatsApp() must be implemented by provider '${this.name}'`, {
+    throw new IntegrationError(`sendWhatsApp() is not supported by provider '${this.name}'`, {
+      code: 'UNSUPPORTED_OPERATION',
+      statusCode: 501,
       provider: this.name
     });
   }

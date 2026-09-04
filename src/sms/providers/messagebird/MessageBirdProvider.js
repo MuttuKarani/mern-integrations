@@ -62,6 +62,15 @@ export class MessageBirdProvider extends SMSProvider {
   }
 
   /**
+   * Returns a list of supported operations for MessageBird.
+   *
+   * @returns {readonly string[]}
+   */
+  get capabilities() {
+    return Object.freeze(['sendSMS', 'sendWhatsApp']);
+  }
+
+  /**
    * Sends WhatsApp template (HSM) messages via MessageBird Conversations API.
    *
    * @param {Object} params

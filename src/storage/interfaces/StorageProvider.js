@@ -17,6 +17,15 @@ export class StorageProvider {
   }
 
   /**
+   * Returns a list of supported operations for this provider.
+   *
+   * @returns {readonly string[]}
+   */
+  get capabilities() {
+    return Object.freeze(['upload', 'delete', 'getUrl']);
+  }
+
+  /**
    * Uploads a file, URL, or data URI to storage.
    *
    * @param {Object} params - Upload parameters.

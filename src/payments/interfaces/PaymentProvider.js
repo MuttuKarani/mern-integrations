@@ -17,6 +17,15 @@ export class PaymentProvider {
   }
 
   /**
+   * Returns a list of supported operations for this provider.
+   *
+   * @returns {readonly string[]}
+   */
+  get capabilities() {
+    return Object.freeze(['createOrder', 'initiatePayment', 'verifyPayment', 'verifyCallback']);
+  }
+
+  /**
    * Creates a payment order on the provider gateway (or generates initiation descriptor).
    *
    * @param {Object} params
@@ -67,10 +76,11 @@ export class PaymentProvider {
    *
    * @param {Object} params
    * @returns {Promise<{success: boolean, provider: string, data: Object}>}
-   * @abstract
    */
   async refund(params) {
-    throw new IntegrationError(`refund() must be implemented by provider '${this.name}'`, {
+    throw new IntegrationError(`refund() is not supported by provider '${this.name}'`, {
+      code: 'UNSUPPORTED_OPERATION',
+      statusCode: 501,
       provider: this.name
     });
   }
@@ -80,10 +90,11 @@ export class PaymentProvider {
    *
    * @param {Object} params
    * @returns {Promise<{success: boolean, provider: string, data: Object}>}
-   * @abstract
    */
   async verifyWebhook(params) {
-    throw new IntegrationError(`verifyWebhook() must be implemented by provider '${this.name}'`, {
+    throw new IntegrationError(`verifyWebhook() is not supported by provider '${this.name}'`, {
+      code: 'UNSUPPORTED_OPERATION',
+      statusCode: 501,
       provider: this.name
     });
   }

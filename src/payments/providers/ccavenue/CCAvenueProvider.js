@@ -65,6 +65,15 @@ export class CCAvenueProvider extends PaymentProvider {
   }
 
   /**
+   * Returns a list of supported operations for CCAvenue.
+   *
+   * @returns {readonly string[]}
+   */
+  get capabilities() {
+    return Object.freeze(['createOrder', 'initiatePayment', 'verifyPayment', 'verifyCallback', 'parseEncryptedResponse']);
+  }
+
+  /**
    * Generates a normalized redirect payment initiation descriptor for CCAvenue.
    *
    * @param {Object} params

@@ -69,6 +69,15 @@ export class RazorpayProvider extends PaymentProvider {
   }
 
   /**
+   * Returns a list of supported operations for Razorpay.
+   *
+   * @returns {readonly string[]}
+   */
+  get capabilities() {
+    return Object.freeze(['createOrder', 'initiatePayment', 'verifyPayment', 'verifyCallback', 'refund', 'verifyWebhook']);
+  }
+
+  /**
    * Get the underlying Razorpay SDK client.
    * @returns {Razorpay}
    */

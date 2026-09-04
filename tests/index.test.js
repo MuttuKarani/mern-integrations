@@ -126,4 +126,86 @@ describe('Root Package Exports & Submodules', () => {
       expect(storageModule.createStorageProvider).toBe(createStorageProvider);
     });
   });
+
+  describe('Provider Capabilities Contract', () => {
+    it('should expose frozen capabilities array on payment providers', () => {
+      const razorpay = new RazorpayProvider({ keyId: 'rzp_test_1', keySecret: 'secret_1' });
+      expect(razorpay.capabilities).toEqual(['createOrder', 'initiatePayment', 'verifyPayment', 'verifyCallback', 'refund', 'verifyWebhook']);
+      expect(Object.isFrozen(razorpay.capabilities)).toBe(true);
+
+      const ccavenue = new CCAvenueProvider({ merchantId: 'm_1', accessCode: 'a_1', workingKey: 'w_1' });
+      expect(ccavenue.capabilities).toEqual(['createOrder', 'initiatePayment', 'verifyPayment', 'verifyCallback', 'parseEncryptedResponse']);
+
+      const stripe = new StripeProvider({ secretKey: 'sk_test_1' });
+      expect(stripe.capabilities).toEqual(['createOrder', 'initiatePayment', 'verifyPayment', 'verifyCallback', 'refund', 'verifyWebhook']);
+    });
+
+    it('should expose frozen capabilities array on email providers', () => {
+      const resend = new ResendProvider({ apiKey: 're_1' });
+      expect(resend.capabilities).toEqual(['send']);
+
+      const nodemailer = new NodemailerProvider({ service: 'gmail', auth: { user: 'u', pass: 'p' } });
+      expect(nodemailer.capabilities).toEqual(['send', 'verify']);
+
+      const ses = new SESProvider({ accessKeyId: 'k', secretAccessKey: 's', region: 'us-east-1' });
+      expect(ses.capabilities).toEqual(['send']);
+    });
+
+    it('should expose frozen capabilities array on SMS providers', () => {
+      const msg91 = new MSG91Provider({ authKey: 'auth_key_123' });
+      expect(msg91.capabilities).toEqual(['sendSMS', 'sendOTP', 'verifyOTP', 'resendOTP', 'sendWhatsApp']);
+
+      const messagebird = new MessageBirdProvider({ apiKey: 'mb_key_123' });
+      expect(messagebird.capabilities).toEqual(['sendSMS', 'sendWhatsApp']);
+    });
+
+    it('should expose frozen capabilities array on storage providers', () => {
+      const cloudinary = new CloudinaryProvider({ cloudName: 'c', apiKey: 'k', apiSecret: 's' });
+      expect(cloudinary.capabilities).toEqual(['upload', 'uploadBuffer', 'delete', 'getUrl']);
+
+      const s3 = new S3Provider({ accessKeyId: 'k', secretAccessKey: 's', region: 'us-east-1', bucket: 'my-bucket' });
+      expect(s3.capabilities).toEqual(['upload', 'uploadBuffer', 'uploadStream', 'delete', 'getUrl']);
+    });
+  });
+
+  describe('Factory Input Consistency Across All Domains', () => {
+    const factories = [
+      { name: 'createPaymentProvider', fn: createPaymentProvider, validProvider: 'razorpay', validConfig: { provider: 'razorpay', keyId: 'k', keySecret: 's' } },
+      { name: 'createEmailProvider', fn: createEmailProvider, validProvider: 'resend', validConfig: { provider: 'resend', apiKey: 'k' } },
+      { name: 'createSMSProvider', fn: createSMSProvider, validProvider: 'msg91', validConfig: { provider: 'msg91', authKey: 'k' } },
+      { name: 'createStorageProvider', fn: createStorageProvider, validProvider: 'cloudinary', validConfig: { provider: 'cloudinary', cloudName: 'c', apiKey: 'k', apiSecret: 's' } }
+    ];
+
+    test.each(factories)('$name should reject null, undefined, arrays, and primitive config types with ValidationError', ({ fn }) => {
+      expect(() => fn(null)).toThrow(ValidationError);
+      expect(() => fn(undefined)).toThrow(ValidationError);
+      expect(() => fn([])).toThrow(ValidationError);
+      expect(() => fn('string')).toThrow(ValidationError);
+      expect(() => fn(123)).toThrow(ValidationError);
+      expect(() => fn(true)).toThrow(ValidationError);
+    });
+
+    test.each(factories)('$name should reject missing or whitespace-only provider names', ({ fn }) => {
+      expect(() => fn({})).toThrow(ValidationError);
+      expect(() => fn({ provider: '' })).toThrow(ValidationError);
+      expect(() => fn({ provider: '   ' })).toThrow(ValidationError);
+      expect(() => fn({ provider: 123 })).toThrow(ValidationError);
+    });
+
+    test.each(factories)('$name should throw IntegrationError with UNSUPPORTED_PROVIDER (400) for unknown providers', ({ fn }) => {
+      try {
+        fn({ provider: 'nonexistent_gateway' });
+        expect(true).toBe(false);
+      } catch (err) {
+        expect(err).toBeInstanceOf(IntegrationError);
+        expect(err.code).toBe('UNSUPPORTED_PROVIDER');
+        expect(err.statusCode).toBe(400);
+      }
+    });
+
+    test.each(factories)('$name should match valid provider names case-insensitively with whitespace trimming', ({ fn, validProvider, validConfig }) => {
+      const instance = fn({ ...validConfig, provider: `  ${validProvider.toUpperCase()}  ` });
+      expect(instance).toBeDefined();
+    });
+  });
 });
