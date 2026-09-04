@@ -83,8 +83,10 @@ mern-integrations/
 │   │   ├── providers/
 │   │   │   ├── resend/
 │   │   │   │   └── ResendProvider.js     # Resend SDK implementation
-│   │   │   └── nodemailer/
-│   │   │       └── NodemailerProvider.js # Nodemailer SMTP implementation
+│   │   │   ├── nodemailer/
+│   │   │   │   └── NodemailerProvider.js # Nodemailer SMTP implementation
+│   │   │   └── ses/
+│   │   │       └── SESProvider.js        # Amazon SES v3 implementation
 │   │   ├── factories/
 │   │   │   └── EmailFactory.js           # Email provider factory
 │   │   └── index.js                      # Email module exports
@@ -105,6 +107,8 @@ mern-integrations/
 │   ├── razorpay-example.js               # Razorpay usage example
 │   ├── ccavenue-example.js               # CCAvenue usage example
 │   ├── resend-example.js                 # Resend usage example
+│   ├── nodemailer-example.js             # Nodemailer usage example
+│   ├── ses-example.js                    # Amazon SES usage example
 │   └── msg91-example.js                  # MSG91 SMS & OTP usage example
 │
 ├── tests/
@@ -158,6 +162,20 @@ CCAVENUE_BASE_URL=https://test.ccavenue.com
 # Resend Email Credentials
 RESEND_API_KEY=re_YourResendApiKeyHere
 
+# Nodemailer SMTP Email Credentials
+SMTP_HOST=smtp.mailtrap.io
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your_smtp_user
+SMTP_PASS=your_smtp_password
+SMTP_SERVICE=
+
+# Amazon SES Email Credentials
+AWS_SES_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+AWS_SES_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+AWS_SES_REGION=us-east-1
+AWS_SES_CONFIGURATION_SET=
+
 # MSG91 SMS & OTP Credentials
 MSG91_AUTH_KEY=YourMSG91AuthKeyHere
 MSG91_BASE_URL=https://control.msg91.com
@@ -203,6 +221,15 @@ const smtpEmail = createEmailProvider({
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS
   }
+});
+
+// 3. Amazon SES Provider (AWS SDK v3)
+const sesEmail = createEmailProvider({
+  provider: 'ses',
+  accessKeyId: process.env.AWS_SES_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SES_SECRET_ACCESS_KEY,
+  region: process.env.AWS_SES_REGION,
+  configurationSetName: process.env.AWS_SES_CONFIGURATION_SET // Optional
 });
 ```
 
@@ -447,6 +474,96 @@ const sendResult = await email.send({
   }
 }
 ```
+
+---
+
+### Amazon SES Integration
+
+`SESProvider` provides production-ready email transmission using the official AWS SDK v3 (`@aws-sdk/client-ses`).
+
+#### Environment Variables
+
+```env
+AWS_SES_ACCESS_KEY_ID=your_aws_access_key
+AWS_SES_SECRET_ACCESS_KEY=your_aws_secret_key
+AWS_SES_REGION=us-east-1
+AWS_SES_CONFIGURATION_SET= # Optional default configuration set
+```
+
+#### Provider Initialization
+
+```javascript
+import { createEmailProvider, SESProvider } from 'mern-integrations';
+
+// Via Factory
+const sesEmail = createEmailProvider({
+  provider: 'ses', // or 'amazon-ses', 'amazonses'
+  accessKeyId: process.env.AWS_SES_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SES_SECRET_ACCESS_KEY,
+  region: process.env.AWS_SES_REGION,
+  configurationSetName: process.env.AWS_SES_CONFIGURATION_SET // Optional
+});
+
+// Or Direct Instantiation
+const directSES = new SESProvider({
+  accessKeyId: process.env.AWS_SES_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SES_SECRET_ACCESS_KEY,
+  region: 'us-east-1'
+});
+```
+
+#### Sending Emails (`send`)
+
+Supports UTF-8 encoded plain text, rich HTML, multiple recipients, CC/BCC, custom Reply-To addresses, Configuration Sets, and message tagging.
+
+```javascript
+const sendResult = await sesEmail.send({
+  from: 'My MERN App <verified-sender@example.com>',
+  to: ['customer@example.com', 'client2@example.com'],
+  cc: 'manager@example.com',
+  bcc: 'audit@example.com',
+  replyTo: 'support@example.com',
+  subject: 'Welcome to our platform!',
+  html: '<h1>Welcome!</h1><p>Thank you for joining our platform.</p>',
+  text: 'Welcome! Thank you for joining our platform.',
+  configurationSetName: 'production-engagement-tracking', // Optional override
+  tags: [
+    { name: 'Environment', value: 'Production' },
+    { name: 'Campaign', value: 'WelcomeOnboarding' }
+  ]
+});
+
+console.log('SES Message ID:', sendResult.data.id);
+```
+
+#### Normalized Response:
+
+```json
+{
+  "success": true,
+  "provider": "ses",
+  "data": {
+    "id": "0100017e-9821-4a3b-b892-123456789abc-000000",
+    "raw": {
+      "MessageId": "0100017e-9821-4a3b-b892-123456789abc-000000"
+    }
+  }
+}
+```
+
+#### Important Amazon SES Notes & Limitations
+
+> **1. SES Sandbox Mode:**
+> - New AWS accounts start in the **Amazon SES Sandbox**.
+> - In sandbox mode, you can only send emails to **verified email addresses or verified domains** in your AWS SES console, with a max sending limit of 200 emails/24 hours.
+> - To send to unverified recipient addresses, submit an AWS SES Sending Limits increase request in the AWS Console to move your account to Production.
+>
+> **2. Verified Identities & DKIM:**
+> - The `from` email address or its root domain must be a verified identity in your Amazon SES region.
+> - For maximum deliverability, configure Easy DKIM and SPF records in your DNS.
+>
+> **3. Configuration Sets:**
+> - Configuration Sets allow you to publish email sending events (deliveries, opens, clicks, bounces, complaints) to Amazon CloudWatch, Kinesis Firehose, or SNS.
 
 ---
 
@@ -942,6 +1059,9 @@ npm run example:resend
 # Run Nodemailer SMTP email example
 npm run example:nodemailer
 
+# Run Amazon SES email example
+npm run example:ses
+
 # Run MSG91 SMS & OTP example
 npm run example:msg91
 
@@ -962,7 +1082,7 @@ npm run example:s3
 The test suite uses **Jest** with ES Module support. All gateway API calls and cryptographic flows are tested using mocks and verified reference vectors.
 
 ```bash
-# Run all tests (Razorpay + CCAvenue + Resend + Nodemailer + MSG91 + MessageBird + Cloudinary + S3)
+# Run all tests (Razorpay + CCAvenue + Resend + Nodemailer + SES + MSG91 + MessageBird + Cloudinary + S3)
 npm test
 
 # Run tests in watch mode
