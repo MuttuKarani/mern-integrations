@@ -11,6 +11,7 @@
     "example:razorpay": "node examples/razorpay-example.js",
     "example:ccavenue": "node examples/ccavenue-example.js",
     "example:resend": "node examples/resend-example.js",
+    "example:nodemailer": "node examples/nodemailer-example.js",
     "example:msg91": "node examples/msg91-example.js",
     "example:messagebird": "node examples/messagebird-example.js",
     "example:cloudinary": "node examples/cloudinary-example.js",
@@ -30,6 +31,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1126.0",
     "cloudinary": "^2.11.0",
     "dotenv": "^16.4.7",
+    "nodemailer": "^10.0.0",
     "razorpay": "^2.9.5",
     "resend": "^6.26.0"
   },
