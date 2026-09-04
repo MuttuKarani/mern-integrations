@@ -12,6 +12,7 @@
     "example:ccavenue": "node examples/ccavenue-example.js",
     "example:resend": "node examples/resend-example.js",
     "example:nodemailer": "node examples/nodemailer-example.js",
+    "example:ses": "node examples/ses-example.js",
     "example:msg91": "node examples/msg91-example.js",
     "example:messagebird": "node examples/messagebird-example.js",
     "example:cloudinary": "node examples/cloudinary-example.js",
@@ -27,6 +28,7 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1126.0",
+    "@aws-sdk/client-ses": "^3.1126.0",
     "@aws-sdk/lib-storage": "^3.1126.0",
     "@aws-sdk/s3-request-presigner": "^3.1126.0",
     "cloudinary": "^2.11.0",
