@@ -159,3 +159,86 @@ export function validateEmailRecipients(value, fieldName = 'to', provider = 'unk
   );
 }
 
+/**
+ * International mobile number validation regex (7 to 15 digits per ITU-T E.164).
+ */
+const MOBILE_REGEX = /^\+?[1-9]\d{6,14}$/;
+
+/**
+ * Validates and normalizes an international mobile number.
+ *
+ * @param {*} value - Mobile number to validate.
+ * @param {string} [fieldName='mobile'] - Name of the field for error reporting.
+ * @param {string} [provider='unknown'] - Provider name.
+ * @returns {string} Normalized international digits string.
+ * @throws {ValidationError} If value is missing, not a string, or not a valid international mobile number.
+ */
+export function validateMobileNumber(value, fieldName = 'mobile', provider = 'unknown') {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new ValidationError(`Field '${fieldName}' is required and must be a valid international mobile number string`, {
+      provider,
+      details: { field: fieldName, received: value }
+    });
+  }
+
+  // Remove common safe formatting characters (spaces, dashes, parentheses, dots)
+  const cleaned = value.trim().replace(/[\s\-\(\)\.]/g, '');
+
+  if (!MOBILE_REGEX.test(cleaned)) {
+    throw new ValidationError(
+      `Field '${fieldName}' must be a valid international mobile number containing country code (e.g., '919999999999' or '+14155552671')`,
+      {
+        provider,
+        details: { field: fieldName, received: value }
+      }
+    );
+  }
+
+  // Return digits without leading '+' for canonical provider transmission
+  return cleaned.startsWith('+') ? cleaned.slice(1) : cleaned;
+}
+
+/**
+ * Validates mobile number recipients (supporting a single mobile number or an array of mobile numbers).
+ *
+ * @param {*} value - Single mobile number or array of mobile numbers.
+ * @param {string} [fieldName='to'] - Name of the field for error reporting.
+ * @param {string} [provider='unknown'] - Provider name.
+ * @returns {string|string[]} Normalized mobile number or array of normalized mobile numbers.
+ * @throws {ValidationError} If recipient format is invalid or array is empty.
+ */
+export function validateMobileRecipients(value, fieldName = 'to', provider = 'unknown') {
+  if (value === undefined || value === null) {
+    throw new ValidationError(`Field '${fieldName}' is required and must contain at least one mobile recipient`, {
+      provider,
+      details: { field: fieldName }
+    });
+  }
+
+  if (typeof value === 'string') {
+    return validateMobileNumber(value, fieldName, provider);
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      throw new ValidationError(`Field '${fieldName}' must contain at least one mobile recipient`, {
+        provider,
+        details: { field: fieldName }
+      });
+    }
+
+    return value.map((item, index) =>
+      validateMobileNumber(item, `${fieldName}[${index}]`, provider)
+    );
+  }
+
+  throw new ValidationError(
+    `Field '${fieldName}' must be a valid international mobile number string or an array of mobile numbers`,
+    {
+      provider,
+      details: { field: fieldName, received: value }
+    }
+  );
+}
+
+
