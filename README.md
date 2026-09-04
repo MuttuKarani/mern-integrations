@@ -169,11 +169,60 @@ mern-integrations/
 
 ## 3. Installation & Setup
 
+### Requirements
+- **Node.js**: `>= 18.0.0` (ES Modules required)
+- **NPM**: `>= 9.0.0`
+
 Install dependencies in the project root:
 
 ```bash
 npm install
 ```
+
+### Module Import Conventions
+
+You can import all providers, factories, errors, and validators from the root package or through dedicated subpaths:
+
+```javascript
+// 1. Root package import
+import {
+  createPaymentProvider,
+  createEmailProvider,
+  createSMSProvider,
+  createStorageProvider,
+  RazorpayProvider,
+  StripeProvider,
+  ResendProvider,
+  NodemailerProvider,
+  MSG91Provider,
+  S3Provider,
+  IntegrationError,
+  ValidationError
+} from 'mern-integrations';
+
+// 2. Domain submodule imports
+import { createPaymentProvider, StripeProvider } from 'mern-integrations/payments';
+import { createEmailProvider, NodemailerProvider } from 'mern-integrations/email';
+import { createSMSProvider, MSG91Provider } from 'mern-integrations/sms';
+import { createStorageProvider, S3Provider } from 'mern-integrations/storage';
+```
+
+### Supported Provider Capability Matrix
+
+All concrete providers expose a read-only, immutable `capabilities` getter returning supported operation names:
+
+| Domain | Provider | Supported Methods / Capabilities |
+|---|---|---|
+| **Payments** | `RazorpayProvider` | `createOrder`, `initiatePayment`, `verifyPayment`, `verifyCallback`, `refund`, `verifyWebhook` |
+| | `CCAvenueProvider` | `createOrder`, `initiatePayment`, `verifyPayment`, `verifyCallback`, `parseEncryptedResponse` |
+| | `StripeProvider` | `createOrder`, `initiatePayment`, `verifyPayment`, `verifyCallback`, `refund`, `verifyWebhook` |
+| **Email** | `ResendProvider` | `send` |
+| | `NodemailerProvider` | `send`, `verify` |
+| | `SESProvider` | `send` |
+| **SMS & OTP** | `MSG91Provider` | `sendSMS`, `sendOTP`, `verifyOTP`, `resendOTP`, `sendWhatsApp` |
+| | `MessageBirdProvider` | `sendSMS`, `sendWhatsApp` |
+| **Storage** | `CloudinaryProvider` | `upload`, `uploadBuffer`, `delete`, `getUrl` |
+| | `S3Provider` | `upload`, `uploadBuffer`, `uploadStream`, `delete`, `getUrl` |
 
 ---
 

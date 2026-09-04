@@ -117,6 +117,15 @@ export class S3Provider extends StorageProvider {
   }
 
   /**
+   * Returns a list of supported operations for AWS S3.
+   *
+   * @returns {readonly string[]}
+   */
+  get capabilities() {
+    return Object.freeze(['upload', 'uploadBuffer', 'uploadStream', 'delete', 'getUrl']);
+  }
+
+  /**
    * Uploads a local file to S3 bucket.
    *
    * @param {Object} params

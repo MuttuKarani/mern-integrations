@@ -61,6 +61,15 @@ export class StripeProvider extends PaymentProvider {
   }
 
   /**
+   * Returns a list of supported operations for Stripe.
+   *
+   * @returns {readonly string[]}
+   */
+  get capabilities() {
+    return Object.freeze(['createOrder', 'initiatePayment', 'verifyPayment', 'verifyCallback', 'refund', 'verifyWebhook']);
+  }
+
+  /**
    * Get the underlying Stripe SDK client instance.
    * @returns {Stripe}
    */

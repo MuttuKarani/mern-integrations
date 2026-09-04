@@ -57,6 +57,15 @@ export class MSG91Provider extends SMSProvider {
   }
 
   /**
+   * Returns a list of supported operations for MSG91.
+   *
+   * @returns {readonly string[]}
+   */
+  get capabilities() {
+    return Object.freeze(['sendSMS', 'sendOTP', 'verifyOTP', 'resendOTP', 'sendWhatsApp']);
+  }
+
+  /**
    * Generates and delivers an OTP to an international mobile number.
    *
    * @param {Object} params

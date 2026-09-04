@@ -158,6 +158,15 @@ export class NodemailerProvider extends EmailProvider {
   }
 
   /**
+   * Returns a list of supported operations for Nodemailer.
+   *
+   * @returns {readonly string[]}
+   */
+  get capabilities() {
+    return Object.freeze(['send', 'verify']);
+  }
+
+  /**
    * Get the underlying Nodemailer Transporter instance.
    * @returns {import('nodemailer').Transporter}
    */

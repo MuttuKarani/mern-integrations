@@ -86,6 +86,15 @@ export class SESProvider extends EmailProvider {
   }
 
   /**
+   * Returns a list of supported operations for Amazon SES.
+   *
+   * @returns {readonly string[]}
+   */
+  get capabilities() {
+    return Object.freeze(['send']);
+  }
+
+  /**
    * Get the underlying SESClient instance.
    * @returns {SESClient}
    */
