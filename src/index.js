@@ -14,3 +14,8 @@ export * as ccavenueCrypto from './payments/providers/ccavenue/ccavenue.crypto.j
 export { EmailProvider } from './email/interfaces/EmailProvider.js';
 export { ResendProvider } from './email/providers/resend/ResendProvider.js';
 export { createEmailProvider } from './email/factories/EmailFactory.js';
+
+// SMS module
+export { SMSProvider } from './sms/interfaces/SMSProvider.js';
+export { MSG91Provider } from './sms/providers/msg91/MSG91Provider.js';
+export { createSMSProvider } from './sms/factories/SMSFactory.js';

@@ -10,7 +10,8 @@
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "example:razorpay": "node examples/razorpay-example.js",
     "example:ccavenue": "node examples/ccavenue-example.js",
-    "example:resend": "node examples/resend-example.js"
+    "example:resend": "node examples/resend-example.js",
+    "example:msg91": "node examples/msg91-example.js"
   },
   "keywords": [
     "mern",
