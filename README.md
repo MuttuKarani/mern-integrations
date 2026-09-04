@@ -196,10 +196,19 @@ const email = createEmailProvider({
 ```javascript
 import { createSMSProvider } from 'mern-integrations';
 
-const sms = createSMSProvider({
+// MSG91 Provider
+const msg91 = createSMSProvider({
   provider: 'msg91',
   authKey: process.env.MSG91_AUTH_KEY,
   baseUrl: process.env.MSG91_BASE_URL // Optional
+});
+
+// MessageBird Provider
+const messagebird = createSMSProvider({
+  provider: 'messagebird',
+  apiKey: process.env.MESSAGEBIRD_API_KEY,
+  channelId: process.env.MESSAGEBIRD_CHANNEL_ID,
+  namespace: process.env.MESSAGEBIRD_NAMESPACE
 });
 ```
 
@@ -425,6 +434,58 @@ const waBulkResponse = await sms.sendWhatsApp({
 
 ---
 
+### MessageBird Integration
+
+`MessageBirdProvider` implements WhatsApp Business messaging (HSM templates) via MessageBird's Conversations API (`https://conversations.messagebird.com/v1/send`) and SMS delivery via REST API (`https://rest.messagebird.com/messages`).
+
+#### Sending WhatsApp Template Messages (`sendWhatsApp`)
+
+Sends pre-approved WhatsApp templates using MessageBird's official Conversations API.
+
+```javascript
+// Simple positional variables
+const waResponse = await messagebird.sendWhatsApp({
+  to: '+31 6 12345678',
+  templateName: 'order_notification',
+  variables: ['John Doe', 'ORD-1002']
+});
+
+// Custom components and overridden channel
+const customWaResponse = await messagebird.sendWhatsApp({
+  to: '31612345678',
+  templateName: 'media_alert',
+  channelId: 'custom-channel-id',
+  components: [
+    {
+      type: 'header',
+      parameters: [{ type: 'image', image: { url: 'https://example.com/logo.png' } }]
+    },
+    {
+      type: 'body',
+      parameters: [{ type: 'text', text: 'Important Update' }]
+    }
+  ]
+});
+```
+
+#### Sending SMS (`sendSMS`)
+
+Dispatches SMS messages via MessageBird's REST API.
+
+```javascript
+const smsResponse = await messagebird.sendSMS({
+  to: '+31 6 12345678',
+  message: 'Your verification code is 456789.',
+  originator: 'MYAPP'
+});
+```
+
+#### Unsupported OTP Operations
+
+MessageBird does not support built-in OTP methods (`sendOTP`, `verifyOTP`, `resendOTP`) in this phase. Invoking these methods throws `IntegrationError` with `code: 'UNSUPPORTED_OPERATION'` and `statusCode: 501`.
+
+---
+
 ## 9. Error Handling & Response Normalization
 
 All public methods throw structured errors inheriting from `IntegrationError` or `ValidationError`:
@@ -461,6 +522,9 @@ npm run example:resend
 
 # Run MSG91 SMS & OTP example
 npm run example:msg91
+
+# Run MessageBird WhatsApp & SMS example
+npm run example:messagebird
 ```
 
 ---
@@ -470,9 +534,10 @@ npm run example:msg91
 The test suite uses **Jest** with ES Module support. All gateway API calls and cryptographic flows are tested using mocks and verified reference vectors.
 
 ```bash
-# Run all tests (Razorpay + CCAvenue + Resend + MSG91)
+# Run all tests (Razorpay + CCAvenue + Resend + MSG91 + MessageBird)
 npm test
 
 # Run tests in watch mode
 npm run test:watch
 ```
+

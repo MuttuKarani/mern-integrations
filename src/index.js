@@ -18,4 +18,6 @@ export { createEmailProvider } from './email/factories/EmailFactory.js';
 // SMS module
 export { SMSProvider } from './sms/interfaces/SMSProvider.js';
 export { MSG91Provider } from './sms/providers/msg91/MSG91Provider.js';
+export { MessageBirdProvider } from './sms/providers/messagebird/MessageBirdProvider.js';
 export { createSMSProvider } from './sms/factories/SMSFactory.js';
+
