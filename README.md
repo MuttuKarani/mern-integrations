@@ -81,8 +81,10 @@ mern-integrations/
 │   │   ├── interfaces/
 │   │   │   └── EmailProvider.js          # Abstract base email class
 │   │   ├── providers/
-│   │   │   └── resend/
-│   │   │       └── ResendProvider.js     # Resend SDK implementation
+│   │   │   ├── resend/
+│   │   │   │   └── ResendProvider.js     # Resend SDK implementation
+│   │   │   └── nodemailer/
+│   │   │       └── NodemailerProvider.js # Nodemailer SMTP implementation
 │   │   ├── factories/
 │   │   │   └── EmailFactory.js           # Email provider factory
 │   │   └── index.js                      # Email module exports
@@ -185,9 +187,22 @@ const razorpay = createPaymentProvider({
 ```javascript
 import { createEmailProvider } from 'mern-integrations';
 
-const email = createEmailProvider({
+// 1. Resend Provider
+const resendEmail = createEmailProvider({
   provider: 'resend',
   apiKey: process.env.RESEND_API_KEY
+});
+
+// 2. Nodemailer SMTP Provider (Custom SMTP / Mailtrap / SES / Gmail)
+const smtpEmail = createEmailProvider({
+  provider: 'nodemailer',
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: process.env.SMTP_SECURE === 'true',
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
+  }
 });
 ```
 
@@ -276,6 +291,161 @@ const response = await email.send({
   html: '<h1>Welcome!</h1><p>Thank you for signing up.</p>',
   text: 'Welcome! Thank you for signing up.'
 });
+```
+
+---
+
+### Nodemailer SMTP Integration
+
+`NodemailerProvider` provides production-grade SMTP email delivery supporting custom SMTP servers and popular email services.
+
+#### Environment Variables
+
+```env
+SMTP_HOST=smtp.mailtrap.io
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your_smtp_username
+SMTP_PASS=your_smtp_password
+SMTP_SERVICE= # Optional: e.g. 'gmail', 'outlook'
+```
+
+#### Provider Initialization
+
+```javascript
+import { createEmailProvider, NodemailerProvider } from 'mern-integrations';
+
+// Via Factory
+const email = createEmailProvider({
+  provider: 'nodemailer',
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: process.env.SMTP_SECURE === 'true',
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
+  }
+});
+
+// Or Direct Instantiation
+const directEmail = new NodemailerProvider({
+  host: 'smtp.sendgrid.net',
+  port: 587,
+  auth: {
+    user: 'apikey',
+    pass: process.env.SENDGRID_API_KEY
+  }
+});
+```
+
+#### Service Configurations & Notes
+
+- **Gmail SMTP (`service: 'gmail'`)**:
+  > **Note on Gmail Authentication:** Google requires 2-Step Verification and a generated **App Password** (16 characters) or OAuth2 credentials for third-party SMTP access. Plain Google account passwords are not supported by Google SMTP.
+  ```javascript
+  const gmailProvider = createEmailProvider({
+    provider: 'nodemailer',
+    service: 'gmail',
+    auth: {
+      user: 'your-email@gmail.com',
+      pass: 'your-16-char-app-password'
+    }
+  });
+  ```
+
+- **Outlook / Microsoft 365 (`service: 'outlook'`)**:
+  ```javascript
+  const outlookProvider = createEmailProvider({
+    provider: 'nodemailer',
+    service: 'outlook',
+    auth: {
+      user: 'user@outlook.com',
+      pass: 'your_outlook_password'
+    }
+  });
+  ```
+
+- **Mailtrap (Testing / Staging)**:
+  ```javascript
+  const mailtrapProvider = createEmailProvider({
+    provider: 'nodemailer',
+    host: 'smtp.mailtrap.io',
+    port: 2525,
+    auth: {
+      user: process.env.MAILTRAP_USER,
+      pass: process.env.MAILTRAP_PASS
+    }
+  });
+  ```
+
+- **Amazon SES SMTP**:
+  ```javascript
+  const sesProvider = createEmailProvider({
+    provider: 'nodemailer',
+    host: 'email-smtp.us-east-1.amazonaws.com',
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.AWS_SES_SMTP_USER,
+      pass: process.env.AWS_SES_SMTP_PASSWORD
+    }
+  });
+  ```
+
+#### Verifying SMTP Connection (`verify`)
+
+Validates the SMTP connection and authentication credentials before sending emails.
+
+```javascript
+const verifyResult = await email.verify();
+console.log('SMTP connection verified:', verifyResult.data.verified);
+```
+
+#### Sending Emails (`send`)
+
+Supports plain text, rich HTML, multiple recipients, CC/BCC, custom headers, and attachments.
+
+```javascript
+const sendResult = await email.send({
+  from: '"My MERN App" <noreply@example.com>',
+  to: ['customer@example.com', 'user2@example.com'],
+  cc: 'team@example.com',
+  bcc: 'audit@example.com',
+  replyTo: 'support@example.com',
+  subject: 'Welcome to our platform!',
+  html: '<h1>Welcome!</h1><p>Thank you for signing up.</p>',
+  text: 'Welcome! Thank you for signing up.',
+  attachments: [
+    {
+      filename: 'invoice.pdf',
+      content: invoiceBuffer,
+      contentType: 'application/pdf'
+    },
+    {
+      filename: 'guide.txt',
+      path: './docs/guide.txt'
+    }
+  ],
+  headers: {
+    'X-App-Version': '1.0.0'
+  }
+});
+```
+
+#### Normalized Response:
+
+```json
+{
+  "success": true,
+  "provider": "nodemailer",
+  "data": {
+    "id": "<b658f8ca-6296-ccf4-8306-87d57a0b4321@example.com>",
+    "accepted": ["customer@example.com", "user2@example.com"],
+    "rejected": [],
+    "response": "250 2.0.0 OK: message queued",
+    "raw": { /* Upstream Nodemailer info object */ }
+  }
+}
 ```
 
 ---
@@ -769,6 +939,9 @@ npm run example:ccavenue
 # Run Resend email example
 npm run example:resend
 
+# Run Nodemailer SMTP email example
+npm run example:nodemailer
+
 # Run MSG91 SMS & OTP example
 npm run example:msg91
 
@@ -789,7 +962,7 @@ npm run example:s3
 The test suite uses **Jest** with ES Module support. All gateway API calls and cryptographic flows are tested using mocks and verified reference vectors.
 
 ```bash
-# Run all tests (Razorpay + CCAvenue + Resend + MSG91 + MessageBird + Cloudinary + S3)
+# Run all tests (Razorpay + CCAvenue + Resend + Nodemailer + MSG91 + MessageBird + Cloudinary + S3)
 npm test
 
 # Run tests in watch mode
