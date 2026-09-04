@@ -1,0 +1,28 @@
+{
+  "name": "mern-integrations",
+  "version": "1.0.0",
+  "description": "Reusable backend integration library for MERN stack applications",
+  "type": "module",
+  "private": true,
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "example:razorpay": "node examples/razorpay-example.js"
+  },
+  "keywords": [
+    "mern",
+    "integration",
+    "payments",
+    "razorpay"
+  ],
+  "author": "",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "razorpay": "^2.9.5"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
