@@ -1,8 +1,8 @@
 # mern-integrations
 
-A modular, reusable backend integration library for MERN stack applications. This library provides a clean provider abstraction layer for payment gateways, notifications, and other third-party services.
+A modular, reusable backend integration library for MERN stack applications. This library provides a clean provider abstraction layer for payment gateways, email notifications, and other third-party services.
 
-> **Note:** This repository is private and intended solely for internal use in MERN backend services.
+> **Note:** This repository is private and intended solely for internal use in MERN backend services. It must not be published to npm.
 
 ---
 
@@ -12,21 +12,23 @@ A modular, reusable backend integration library for MERN stack applications. Thi
 - [2. Folder Structure](#2-folder-structure)
 - [3. Installation & Setup](#3-installation--setup)
 - [4. Environment Configuration](#4-environment-configuration)
-- [5. Architecture & Provider Factory](#5-architecture--provider-factory)
-- [6. Amount Convention](#6-amount-convention)
-- [7. Razorpay Integration](#7-razorpay-integration)
-  - [createOrder](#createorder)
-  - [verifyPayment](#verifypayment)
-  - [refund](#refund-razorpay)
-  - [verifyWebhook](#verifywebhook-razorpay)
-- [8. CCAvenue Integration](#8-ccavenue-integration)
-  - [Lifecycle Differences](#ccavenue-lifecycle-overview)
-  - [initiatePayment](#initiatepayment)
-  - [verifyCallback](#verifycallback)
-  - [Refund Limitation](#refunds-in-ccavenue)
-- [9. Error Handling & Response Normalization](#9-error-handling--response-normalization)
-- [10. Example Usage in Express](#10-example-usage-in-express)
-- [11. Testing Instructions](#11-testing-instructions)
+- [5. Provider Factories](#5-provider-factories)
+  - [Payment Factory](#payment-factory)
+  - [Email Factory](#email-factory)
+- [6. Payment Providers](#6-payment-providers)
+  - [Amount Convention](#amount-convention)
+  - [Razorpay Integration](#razorpay-integration)
+  - [CCAvenue Integration](#ccavenue-integration)
+- [7. Email Providers](#7-email-providers)
+  - [Resend Integration](#resend-integration)
+  - [Configuration](#resend-configuration)
+  - [Basic Usage](#resend-basic-usage)
+  - [Recipient Formats & Validation](#resend-recipient-formats--validation)
+  - [Normalized Success Response](#resend-normalized-success-response)
+  - [Sender Domain Verification Requirements](#resend-sender-domain-verification-requirements)
+- [8. Error Handling & Response Normalization](#8-error-handling--response-normalization)
+- [9. Example Scripts](#9-example-scripts)
+- [10. Testing Instructions](#10-testing-instructions)
 
 ---
 
@@ -35,11 +37,11 @@ A modular, reusable backend integration library for MERN stack applications. Thi
 In standard MERN applications, integrating third-party services directly into controller logic often leads to tight coupling, vendor lock-in, fragmented error handling, and security oversights.
 
 `mern-integrations` solves this by introducing:
-- **Provider Abstraction**: A unified `PaymentProvider` interface decoupling your business logic from gateway SDKs.
-- **Strict Input Validation**: Guaranteed validation of amounts, currencies, IDs, and payload types before gateway calls.
+- **Provider Abstractions**: Unified `PaymentProvider` and `EmailProvider` interfaces decoupling business logic from third-party gateway SDKs.
+- **Strict Input Validation**: Guaranteed validation of amounts, currencies, emails, and payload types before API calls.
 - **Secure Cryptography**: Native `crypto.timingSafeEqual()` for Razorpay HMAC signatures, and verified `AES-128-CBC` (MD5 key derivation) for CCAvenue.
 - **Normalized Response Format**: Consistent success and error response shapes across all providers.
-- **Private & Extensible Foundation**: Built with ES Modules, supporting both API-based (Razorpay) and redirect-based (CCAvenue) payment lifecycles.
+- **Private & Extensible Foundation**: Built with ES Modules, supporting future providers (SendGrid, AWS SES, Mailgun, Postmark).
 
 ---
 
@@ -57,35 +59,44 @@ mern-integrations/
 │   │   │   └── index.js                  # Core error exports
 │   │   │
 │   │   └── utils/
-│   │       └── validators.js             # Input validation helpers
+│   │       └── validators.js             # Reusable input & email validators
 │   │
 │   ├── payments/
-│   │   │
 │   │   ├── interfaces/
-│   │   │   └── PaymentProvider.js        # Abstract base class
-│   │   │
+│   │   │   └── PaymentProvider.js        # Abstract base payment class
 │   │   ├── providers/
 │   │   │   ├── razorpay/
 │   │   │   │   └── RazorpayProvider.js   # Razorpay SDK implementation
 │   │   │   └── ccavenue/
 │   │   │       ├── CCAvenueProvider.js   # CCAvenue redirect & callback implementation
 │   │   │       └── ccavenue.crypto.js    # Official AES-128-CBC crypto helpers
-│   │   │
 │   │   ├── factories/
-│   │   │   └── PaymentFactory.js         # Provider factory
-│   │   │
+│   │   │   └── PaymentFactory.js         # Payment provider factory
 │   │   └── index.js                      # Payments module exports
+│   │
+│   ├── email/
+│   │   ├── interfaces/
+│   │   │   └── EmailProvider.js          # Abstract base email class
+│   │   ├── providers/
+│   │   │   └── resend/
+│   │   │       └── ResendProvider.js     # Resend SDK implementation
+│   │   ├── factories/
+│   │   │   └── EmailFactory.js           # Email provider factory
+│   │   └── index.js                      # Email module exports
 │   │
 │   └── index.js                          # Root package entry point
 │
 ├── examples/
 │   ├── razorpay-example.js               # Razorpay usage example
-│   └── ccavenue-example.js               # CCAvenue usage example
+│   ├── ccavenue-example.js               # CCAvenue usage example
+│   └── resend-example.js                 # Resend usage example
 │
 ├── tests/
-│   └── payments/
-│       ├── razorpay.test.js              # Razorpay unit tests with SDK mocks
-│       └── ccavenue.test.js              # CCAvenue unit tests with crypto vectors
+│   ├── payments/
+│   │   ├── razorpay.test.js              # Razorpay unit tests with SDK mocks
+│   │   └── ccavenue.test.js              # CCAvenue unit tests with crypto vectors
+│   └── email/
+│       └── resend.test.js                # Resend unit tests with SDK mocks
 │
 ├── .env.example
 ├── .gitignore
@@ -125,13 +136,18 @@ CCAVENUE_MERCHANT_ID=YourMerchantIdHere
 CCAVENUE_ACCESS_CODE=YourAccessCodeHere
 CCAVENUE_WORKING_KEY=YourWorkingKeyHere
 CCAVENUE_BASE_URL=https://test.ccavenue.com
+
+# Resend Credentials
+RESEND_API_KEY=re_YourResendApiKeyHere
 ```
+
+> **Security Note:** Never commit API keys or secrets to source control. `.env` is ignored by `.gitignore`.
 
 ---
 
-## 5. Architecture & Provider Factory
+## 5. Provider Factories
 
-Initialize payment providers dynamically using `createPaymentProvider`:
+### Payment Factory
 
 ```javascript
 import { createPaymentProvider } from 'mern-integrations';
@@ -150,214 +166,161 @@ const ccavenue = createPaymentProvider({
   merchantId: process.env.CCAVENUE_MERCHANT_ID,
   accessCode: process.env.CCAVENUE_ACCESS_CODE,
   workingKey: process.env.CCAVENUE_WORKING_KEY,
-  testMode: true // Set to false in production
+  testMode: true // false for production
+});
+```
+
+### Email Factory
+
+```javascript
+import { createEmailProvider } from 'mern-integrations';
+
+// Initialize Resend
+const email = createEmailProvider({
+  provider: 'resend',
+  apiKey: process.env.RESEND_API_KEY
 });
 ```
 
 ---
 
-## 6. Amount Convention
+## 6. Payment Providers
 
-Across the entire `mern-integrations` library:
-- **All amounts must strictly be passed as positive integers representing the smallest currency sub-unit.**
+### Amount Convention
+- **All payment amounts must strictly be passed as positive integers representing the smallest currency sub-unit.**
 - **For INR**, amounts must be in **paise** (1 Rupee = 100 paise).
   - ₹10.00 &rarr; `1000`
   - ₹150.00 &rarr; `15000`
   - ₹499.00 &rarr; `49900`
-- Floating point amounts (e.g. `10.50`) will throw a `ValidationError`.
+- Floating point amounts (e.g. `10.50`) throw a `ValidationError`.
+
+### Razorpay Integration
+- `createOrder({ amount, currency, receipt, notes })`: Creates an order via Razorpay REST API.
+- `verifyPayment({ razorpayOrderId, razorpayPaymentId, razorpaySignature })`: Cryptographically verifies checkout signature using HMAC SHA-256 with `crypto.timingSafeEqual()`.
+- `refund({ paymentId, amount, notes })`: Issues full or partial refunds.
+- `verifyWebhook({ payload, signature })`: Cryptographically verifies webhook signatures on raw request bodies.
+
+### CCAvenue Integration
+- `initiatePayment({ orderId, amount, currency, redirectUrl, cancelUrl, billing, shipping })`: Generates the encrypted AES-128-CBC redirect descriptor (`encRequest` + `access_code`) for hosted form checkout.
+- `verifyCallback({ encResp })`: Decrypts and parses the encrypted callback response received at `redirect_url` or `cancel_url`.
+- `refund()`: Programmatic refunds require enterprise `DoWebTrans` servlet + IP whitelisting; throws `UNSUPPORTED_OPERATION` (501).
 
 ---
 
-## 7. Razorpay Integration
+## 7. Email Providers
 
-### `createOrder`
-Creates an order via Razorpay REST API for client-side modal checkout.
+### Resend Integration
+
+`ResendProvider` wraps the official Resend SDK (`resend`) with input validation, parameter normalization, and structured error handling.
+
+### Resend Configuration
 
 ```javascript
-const order = await razorpay.createOrder({
-  amount: 1000, // 1000 paise = ₹10
-  currency: 'INR',
-  receipt: 'order_rcpt_123',
-  notes: { userId: 'user_101' }
+import { createEmailProvider } from 'mern-integrations';
+
+const email = createEmailProvider({
+  provider: 'resend',
+  apiKey: process.env.RESEND_API_KEY
 });
 ```
 
-### `verifyPayment`
-Cryptographically verifies checkout payment signature using HMAC SHA-256 with `crypto.timingSafeEqual()`.
+### Resend Basic Usage
 
 ```javascript
-const verification = await razorpay.verifyPayment({
-  razorpayOrderId: 'order_EKwxwAgItmmXdp',
-  razorpayPaymentId: 'pay_DAvJ6qW4m8kX9Y',
-  razorpaySignature: '38a7c6e75...'
+const response = await email.send({
+  from: 'My App <noreply@yourdomain.com>',
+  to: 'customer@example.com',
+  subject: 'Welcome to our platform!',
+  html: '<h1>Welcome!</h1><p>Thank you for signing up.</p>',
+  text: 'Welcome! Thank you for signing up.', // Optional if html is provided
+  replyTo: 'support@yourdomain.com',
+  cc: 'team@yourdomain.com',
+  bcc: ['archive@yourdomain.com'],
+  tags: [{ name: 'category', value: 'onboarding' }]
 });
 ```
 
-### `refund` (Razorpay)
-Issues full or partial refunds via Razorpay API.
+### Resend Recipient Formats & Validation
+- **`from`**: Required non-empty string.
+- **`to`**: Single string (`"user@example.com"`) or array (`["user1@example.com", "user2@example.com"]`). Empty arrays are rejected.
+- **`subject`**: Required non-empty string.
+- **`html` and `text`**: At least one must be provided as a non-empty string.
+- **`replyTo`, `cc`, `bcc`**: Optional. Accepts single email string or array of emails.
+- **`tags`**: Optional array of `{ name: string, value: string }` objects.
 
-```javascript
-const refundResult = await razorpay.refund({
-  paymentId: 'pay_DAvJ6qW4m8kX9Y',
-  amount: 500 // 500 paise = ₹5.00 partial refund (omit for full refund)
-});
-```
+### Resend Normalized Success Response
 
-### `verifyWebhook` (Razorpay)
-Cryptographically verifies incoming server-to-server webhook signatures on the **exact raw request body**.
-
-```javascript
-app.post('/api/webhooks/razorpay', express.raw({ type: 'application/json' }), async (req, res) => {
-  const result = await razorpay.verifyWebhook({
-    payload: req.body, // Pass raw Buffer or string
-    signature: req.headers['x-razorpay-signature']
-  });
-  if (!result.data.verified) return res.status(400).send('Invalid signature');
-  res.json({ status: 'ok' });
-});
-```
-
----
-
-## 8. CCAvenue Integration
-
-### CCAvenue Lifecycle Overview
-Unlike Razorpay (which creates orders via REST API for client-side popups), CCAvenue uses a **hosted checkout flow**:
-1. The backend builds a parameter query string and encrypts it with AES-128-CBC using the merchant Working Key.
-2. The backend returns a redirect descriptor (`action: 'redirect'`, `method: 'POST'`, `fields: { encRequest, access_code }`).
-3. The frontend renders a form POSTing `encRequest` and `access_code` to CCAvenue's gateway.
-4. After payment, CCAvenue POSTs an encrypted response (`encResp`) to the merchant's `redirect_url` (success) or `cancel_url` (failure).
-5. The backend decrypts `encResp` using `verifyCallback({ encResp })`.
-
-### `initiatePayment`
-Generates the encrypted POST descriptor for CCAvenue hosted checkout.
-
-```javascript
-const initiation = await ccavenue.initiatePayment({
-  orderId: 'ORD_1001',
-  amount: 15000, // 15000 paise = ₹150.00
-  currency: 'INR',
-  redirectUrl: 'https://myshop.com/api/payments/ccavenue/callback',
-  cancelUrl: 'https://myshop.com/api/payments/ccavenue/cancel',
-  billing: {
-    name: 'Jane Doe',
-    email: 'jane@example.com',
-    tel: '9876543210',
-    city: 'Bengaluru',
-    state: 'Karnataka',
-    country: 'India',
-    zip: '560001'
-  }
-});
-```
-
-#### Normalized Response:
 ```json
 {
   "success": true,
-  "provider": "ccavenue",
+  "provider": "resend",
   "data": {
-    "orderId": "ORD_1001",
-    "action": "redirect",
-    "redirectUrl": "https://test.ccavenue.com/transaction/transaction.do?command=initiateTransaction",
-    "method": "POST",
-    "fields": {
-      "encRequest": "56c1b0b0678f...",
-      "access_code": "AVTESTACCESS1234"
-    }
+    "id": "email_msg_01H1ABCD1234567890"
   }
 }
 ```
 
-### `verifyCallback`
-Decrypts and parses the encrypted callback response (`encResp`) received at `redirect_url` or `cancel_url`.
-
-```javascript
-app.post('/api/payments/ccavenue/callback', express.urlencoded({ extended: true }), async (req, res) => {
-  const result = await ccavenue.verifyCallback({
-    encResp: req.body.encResp
-  });
-
-  if (result.data.verified) {
-    // Payment Successful
-    console.log('Order fulfilled:', result.data.orderId, 'Tracking ID:', result.data.trackingId);
-    return res.redirect(`/payment-success?orderId=${result.data.orderId}`);
-  } else {
-    // Payment Failed or Aborted
-    console.error('Payment failed:', result.data.failureMessage);
-    return res.redirect(`/payment-failed?reason=${result.data.orderStatus}`);
-  }
-});
-```
-
-#### Normalized Callback Response:
-```json
-{
-  "success": true,
-  "provider": "ccavenue",
-  "data": {
-    "verified": true,
-    "orderId": "ORD_1001",
-    "trackingId": "31000998877",
-    "bankRefNo": "HDFC987654",
-    "orderStatus": "Success",
-    "failureMessage": null,
-    "paymentMode": "Credit Card",
-    "cardName": "Visa",
-    "currency": "INR",
-    "amount": 15000,
-    "statusCode": null,
-    "statusMessage": null,
-    "raw": { /* Decrypted CCAvenue query parameters */ }
-  }
-}
-```
-
-### Refunds in CCAvenue
-> **Integration Limitation:** Programmatic refunds in CCAvenue require the separate `DoWebTrans` enterprise API servlet with static server IP whitelisting. Calling `ccavenue.refund()` will throw an `IntegrationError` (`UNSUPPORTED_OPERATION`, status 501). Refunds must be processed through the CCAvenue Merchant Dashboard.
+### Resend Sender Domain Verification Requirements
+> **IMPORTANT:** In production, sending emails requires that your sender domain (e.g., `yourdomain.com`) is added and verified (DKIM / SPF) in your [Resend Dashboard](https://resend.com/domains). Sending from unverified domains will result in a provider validation error (`statusCode: 422`).
 
 ---
 
-## 9. Error Handling & Response Normalization
+## 8. Error Handling & Response Normalization
 
-All library errors are instances of `IntegrationError` or `ValidationError`:
+All public methods throw structured errors inheriting from `IntegrationError` or `ValidationError`. Errors can be formatted into standard JSON via `.toJSON()`:
 
 ```javascript
 import { IntegrationError, ValidationError } from 'mern-integrations';
 
 try {
-  await payment.initiatePayment({ orderId: 'ORD_1', amount: -50, currency: 'INR' });
+  await email.send({
+    from: 'sender@app.com',
+    to: 'invalid-email',
+    subject: 'Hello'
+  });
 } catch (error) {
   if (error instanceof ValidationError) {
     console.error('Validation error:', error.toJSON());
+    // {
+    //   success: false,
+    //   provider: 'resend',
+    //   error: {
+    //     code: 'VALIDATION_ERROR',
+    //     message: "Field 'to' must be a valid email address",
+    //     details: { field: 'to', received: 'invalid-email' }
+    //   }
+    // }
   } else if (error instanceof IntegrationError) {
-    console.error('Integration error:', error.toJSON());
+    console.error('Provider error:', error.toJSON());
   }
 }
 ```
 
 ---
 
-## 10. Example Usage in Express
+## 9. Example Scripts
 
 Run the standalone example scripts:
 
 ```bash
-# Run Razorpay example
+# Run Razorpay payment example
 npm run example:razorpay
 
-# Run CCAvenue example
+# Run CCAvenue payment example
 npm run example:ccavenue
+
+# Run Resend email example
+npm run example:resend
 ```
 
 ---
 
-## 11. Testing Instructions
+## 10. Testing Instructions
 
 The test suite uses **Jest** with ES Module support. All gateway API calls and cryptographic flows are tested using mocks and verified reference vectors.
 
 ```bash
-# Run all tests (Razorpay + CCAvenue)
+# Run all tests (Razorpay + CCAvenue + Resend)
 npm test
 
 # Run tests in watch mode
