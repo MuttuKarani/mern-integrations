@@ -37,13 +37,14 @@ export class ResendProvider extends EmailProvider {
       });
     }
 
-    const { apiKey, client = null, loader = null } = config;
+    const resolvedApiKey = config.apiKey || process.env.RESEND_API_KEY;
+    const { client = null, loader = null } = config;
 
     if (!client) {
-      validateRequiredString(apiKey, 'apiKey', 'resend');
+      validateRequiredString(resolvedApiKey, 'apiKey', 'resend');
     }
 
-    this.#apiKey = apiKey ? apiKey.trim() : null;
+    this.#apiKey = resolvedApiKey ? resolvedApiKey.trim() : null;
     this.#client = client || null;
     this.#loader = loader || null;
   }

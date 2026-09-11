@@ -49,6 +49,7 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
         'createPaymentProvider',
         'createSMSProvider',
         'createStorageProvider',
+        'rawBodyMiddleware',
         'validateAmountInSmallestUnit',
         'validateEmail',
         'validateEmailRecipients',
@@ -56,7 +57,8 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
         'validateMobileRecipients',
         'validateRawPayload',
         'validateRequiredObject',
-        'validateRequiredString'
+        'validateRequiredString',
+        'withRetry'
       ].sort();
 
       expect(actualRootExports).toEqual(expectedRootExports);

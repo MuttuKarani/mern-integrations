@@ -44,18 +44,20 @@ export class StripeProvider extends PaymentProvider {
       });
     }
 
-    const { secretKey, webhookSecret = null, client = null, loader = null } = config;
+    const resolvedSecretKey = config.secretKey || process.env.STRIPE_SECRET_KEY;
+    const resolvedWebhookSecret = config.webhookSecret !== undefined ? config.webhookSecret : (process.env.STRIPE_WEBHOOK_SECRET || null);
+    const { client = null, loader = null } = config;
 
     if (!client) {
-      validateRequiredString(secretKey, 'secretKey', 'stripe');
+      validateRequiredString(resolvedSecretKey, 'secretKey', 'stripe');
     }
 
-    if (webhookSecret !== null && webhookSecret !== undefined) {
-      validateRequiredString(webhookSecret, 'webhookSecret', 'stripe');
+    if (resolvedWebhookSecret !== null && resolvedWebhookSecret !== undefined) {
+      validateRequiredString(resolvedWebhookSecret, 'webhookSecret', 'stripe');
     }
 
-    this.#secretKey = secretKey || null;
-    this.#webhookSecret = webhookSecret || null;
+    this.#secretKey = resolvedSecretKey || null;
+    this.#webhookSecret = resolvedWebhookSecret || null;
     this.#client = client || null;
     this.#loader = loader || null;
   }

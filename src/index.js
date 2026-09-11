@@ -2,6 +2,8 @@
 export { IntegrationError } from './core/errors/IntegrationError.js';
 export { ValidationError } from './core/errors/ValidationError.js';
 export * from './core/utils/validators.js';
+export { rawBodyMiddleware } from './core/utils/express.js';
+export { withRetry } from './core/utils/retry.js';
 
 // Payments module
 export { PaymentProvider } from './payments/interfaces/PaymentProvider.js';
