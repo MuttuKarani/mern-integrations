@@ -4,8 +4,12 @@
   "description": "Unified, production-ready backend integration library for MERN stack applications covering Payments, Email, SMS/OTP, and Storage",
   "type": "module",
   "main": "./src/index.js",
+  "types": "./index.d.ts",
   "exports": {
-    ".": "./src/index.js",
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./src/index.js"
+    },
     "./payments": "./src/payments/index.js",
     "./email": "./src/email/index.js",
     "./sms": "./src/sms/index.js",
@@ -14,6 +18,7 @@
   },
   "files": [
     "src",
+    "index.d.ts",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"

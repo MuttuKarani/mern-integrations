@@ -67,12 +67,13 @@ export class S3Provider extends StorageProvider {
       });
     }
 
+    const resolvedAccessKeyId = config.accessKeyId || process.env.AWS_ACCESS_KEY_ID;
+    const resolvedSecretAccessKey = config.secretAccessKey || process.env.AWS_SECRET_ACCESS_KEY;
+    const resolvedRegion = config.region || process.env.AWS_REGION;
+    const resolvedBucket = config.bucket || process.env.AWS_S3_BUCKET || process.env.AWS_BUCKET;
+
     const {
-      accessKeyId,
-      secretAccessKey,
-      region,
-      bucket,
-      endpoint = null,
+      endpoint = process.env.AWS_S3_ENDPOINT || null,
       forcePathStyle = false,
       client = null,
       presigner = null,
@@ -80,15 +81,15 @@ export class S3Provider extends StorageProvider {
       loader = null
     } = config;
 
-    validateRequiredString(accessKeyId, 'accessKeyId', 's3');
-    validateRequiredString(secretAccessKey, 'secretAccessKey', 's3');
-    validateRequiredString(region, 'region', 's3');
-    validateRequiredString(bucket, 'bucket', 's3');
+    validateRequiredString(resolvedAccessKeyId, 'accessKeyId', 's3');
+    validateRequiredString(resolvedSecretAccessKey, 'secretAccessKey', 's3');
+    validateRequiredString(resolvedRegion, 'region', 's3');
+    validateRequiredString(resolvedBucket, 'bucket', 's3');
 
-    this.#accessKeyId = accessKeyId.trim();
-    this.#secretAccessKey = secretAccessKey.trim();
-    this.#region = region.trim();
-    this.#bucket = bucket.trim();
+    this.#accessKeyId = resolvedAccessKeyId.trim();
+    this.#secretAccessKey = resolvedSecretAccessKey.trim();
+    this.#region = resolvedRegion.trim();
+    this.#bucket = resolvedBucket.trim();
     this.#endpoint = endpoint ? String(endpoint).trim() : null;
     this.#forcePathStyle = Boolean(forcePathStyle);
     this.#client = client;

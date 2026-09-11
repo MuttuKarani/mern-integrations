@@ -47,20 +47,23 @@ export class RazorpayProvider extends PaymentProvider {
       });
     }
 
-    const { keyId, keySecret, webhookSecret = null, client = null, loader = null } = config;
+    const resolvedKeyId = config.keyId || process.env.RAZORPAY_KEY_ID;
+    const resolvedKeySecret = config.keySecret || process.env.RAZORPAY_KEY_SECRET;
+    const resolvedWebhookSecret = config.webhookSecret !== undefined ? config.webhookSecret : (process.env.RAZORPAY_WEBHOOK_SECRET || null);
+    const { client = null, loader = null } = config;
 
     if (!client) {
-      validateRequiredString(keyId, 'keyId', 'razorpay');
-      validateRequiredString(keySecret, 'keySecret', 'razorpay');
+      validateRequiredString(resolvedKeyId, 'keyId', 'razorpay');
+      validateRequiredString(resolvedKeySecret, 'keySecret', 'razorpay');
     }
 
-    if (webhookSecret !== null && webhookSecret !== undefined) {
-      validateRequiredString(webhookSecret, 'webhookSecret', 'razorpay');
+    if (resolvedWebhookSecret !== null && resolvedWebhookSecret !== undefined) {
+      validateRequiredString(resolvedWebhookSecret, 'webhookSecret', 'razorpay');
     }
 
-    this.#keyId = keyId || null;
-    this.#keySecret = keySecret || null;
-    this.#webhookSecret = webhookSecret || null;
+    this.#keyId = resolvedKeyId || null;
+    this.#keySecret = resolvedKeySecret || null;
+    this.#webhookSecret = resolvedWebhookSecret || null;
     this.#client = client || null;
     this.#loader = loader || null;
   }

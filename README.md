@@ -198,19 +198,11 @@ Then initialize and use your providers without needing uninstalled SDKs:
 ```javascript
 import { createPaymentProvider, createEmailProvider } from 'mern-integrations';
 
-// 1. Initialize Razorpay Payment Gateway
-const payment = createPaymentProvider({
-  provider: 'razorpay',
-  keyId: process.env.RAZORPAY_KEY_ID,
-  keySecret: process.env.RAZORPAY_KEY_SECRET,
-  webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET
-});
+// 1. Initialize Razorpay (Auto-hydrates keyId & keySecret from process.env.RAZORPAY_*)
+const payment = createPaymentProvider({ provider: 'razorpay' });
 
-// 2. Initialize Resend Email Service
-const email = createEmailProvider({
-  provider: 'resend',
-  apiKey: process.env.RESEND_API_KEY
-});
+// 2. Initialize Resend (Auto-hydrates apiKey from process.env.RESEND_API_KEY)
+const email = createEmailProvider({ provider: 'resend' });
 
 // 3. Create an Order & Send Confirmation
 async function processOrder(customer) {
@@ -1498,28 +1490,46 @@ if (payment.capabilities.includes('refund')) {
 }
 ```
 
-### Webhook Raw Body Security Notice
+### Webhook Raw Body Security Notice & Middleware
 
-> **Security Warning:** Cryptographic webhook verification (for Stripe and Razorpay) requires the **exact, unmodified raw request body string or Buffer** (`req.body`).
-> Parsing the body with standard JSON middleware (`express.json()`) mutates whitespace and key order, causing HMAC signature verification to fail. Configure raw body parsing for webhook endpoints:
+> **Security Warning:** Cryptographic webhook verification (for Stripe and Razorpay) requires the **exact, unmodified raw request body string or Buffer** (`req.rawBody` or `req.body`).
+> Parsing the body with standard JSON middleware (`express.json()`) mutates whitespace and key order, causing HMAC signature verification to fail. 
+
+`mern-integrations` exports a built-in `rawBodyMiddleware()` helper for Express applications:
 
 ```javascript
-// Express raw body capture example:
-app.post(
-  '/api/webhooks/stripe',
-  express.raw({ type: 'application/json' }),
-  async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    const result = await stripe.verifyWebhook({
-      payload: req.body, // Must be Buffer or raw string
-      signature: sig
-    });
-    if (result.data.verified) {
-      res.json({ received: true });
-    } else {
-      res.status(400).send('Invalid signature');
-    }
+import express from 'express';
+import { rawBodyMiddleware, createPaymentProvider } from 'mern-integrations';
+
+const app = express();
+const stripe = createPaymentProvider({ provider: 'stripe' });
+
+// Use rawBodyMiddleware to automatically capture req.rawBody Buffer while maintaining req.body
+app.post('/api/webhooks/stripe', rawBodyMiddleware(), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  const result = await stripe.verifyWebhookSignature(req.rawBody, sig);
+  
+  if (result.data?.verified || result === true) {
+    res.json({ received: true });
+  } else {
+    res.status(400).send('Invalid signature');
   }
+});
+```
+
+### Network Resiliency & Exponential Backoff (`withRetry`)
+
+To handle transient network glitches, 5xx server errors, or 429 rate limit errors from third-party APIs, use `withRetry`:
+
+```javascript
+import { withRetry, createEmailProvider } from 'mern-integrations';
+
+const email = createEmailProvider({ provider: 'resend' });
+
+// Executes with automatic exponential backoff (up to 3 retries)
+const response = await withRetry(
+  () => email.sendEmail({ to: 'user@example.com', subject: 'Welcome!', html: '<h1>Welcome</h1>' }),
+  { retries: 3, minTimeout: 300, maxTimeout: 2000 }
 );
 ```
 
