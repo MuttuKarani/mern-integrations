@@ -13,6 +13,7 @@ import {
   RazorpayProvider,
   CCAvenueProvider,
   StripeProvider,
+  PhonePeProvider,
   MockPaymentProvider,
   createPaymentProvider,
   ccavenueCrypto,
@@ -25,6 +26,7 @@ import {
   SMSProvider,
   MSG91Provider,
   MessageBirdProvider,
+  TwilioProvider,
   MockSMSProvider,
   createSMSProvider,
   StorageProvider,
@@ -67,6 +69,7 @@ describe('Root Package Exports & Submodules', () => {
       expect(RazorpayProvider).toBeDefined();
       expect(CCAvenueProvider).toBeDefined();
       expect(StripeProvider).toBeDefined();
+      expect(PhonePeProvider).toBeDefined();
       expect(MockPaymentProvider).toBeDefined();
       expect(typeof createPaymentProvider).toBe('function');
       expect(ccavenueCrypto).toBeDefined();
@@ -79,6 +82,7 @@ describe('Root Package Exports & Submodules', () => {
       expect(paymentsModule.RazorpayProvider).toBe(RazorpayProvider);
       expect(paymentsModule.CCAvenueProvider).toBe(CCAvenueProvider);
       expect(paymentsModule.StripeProvider).toBe(StripeProvider);
+      expect(paymentsModule.PhonePeProvider).toBe(PhonePeProvider);
       expect(paymentsModule.MockPaymentProvider).toBe(MockPaymentProvider);
       expect(paymentsModule.createPaymentProvider).toBe(createPaymentProvider);
     });
@@ -109,6 +113,7 @@ describe('Root Package Exports & Submodules', () => {
       expect(SMSProvider).toBeDefined();
       expect(MSG91Provider).toBeDefined();
       expect(MessageBirdProvider).toBeDefined();
+      expect(TwilioProvider).toBeDefined();
       expect(MockSMSProvider).toBeDefined();
       expect(typeof createSMSProvider).toBe('function');
     });
@@ -117,6 +122,7 @@ describe('Root Package Exports & Submodules', () => {
       expect(smsModule.SMSProvider).toBe(SMSProvider);
       expect(smsModule.MSG91Provider).toBe(MSG91Provider);
       expect(smsModule.MessageBirdProvider).toBe(MessageBirdProvider);
+      expect(smsModule.TwilioProvider).toBe(TwilioProvider);
       expect(smsModule.MockSMSProvider).toBe(MockSMSProvider);
       expect(smsModule.createSMSProvider).toBe(createSMSProvider);
     });
@@ -161,6 +167,9 @@ describe('Root Package Exports & Submodules', () => {
       const stripe = new StripeProvider({ secretKey: 'sk_test_1' });
       expect(stripe.capabilities).toEqual(['createOrder', 'initiatePayment', 'verifyPayment', 'verifyCallback', 'refund', 'verifyWebhook']);
 
+      const phonepe = new PhonePeProvider({ merchantId: 'm_1', saltKey: 'k_1' });
+      expect(phonepe.capabilities).toEqual(['createOrder', 'initiatePayment', 'verifyPayment', 'verifyCallback', 'refund', 'verifyWebhook']);
+
       const mock = new MockPaymentProvider();
       expect(mock.capabilities).toEqual(['createOrder', 'initiatePayment', 'verifyPayment', 'verifyCallback', 'refund', 'verifyWebhook']);
     });
@@ -185,6 +194,9 @@ describe('Root Package Exports & Submodules', () => {
 
       const messagebird = new MessageBirdProvider({ apiKey: 'mb_key_123' });
       expect(messagebird.capabilities).toEqual(['sendSMS', 'sendWhatsApp']);
+
+      const twilio = new TwilioProvider({ accountSid: 'AC_1', authToken: 'tok_1' });
+      expect(twilio.capabilities).toEqual(['sendSMS', 'sendOTP', 'verifyOTP', 'sendWhatsApp', 'verifyWebhook']);
 
       const mock = new MockSMSProvider();
       expect(mock.capabilities).toEqual(['sendSMS', 'sendOTP', 'verifyOTP', 'resendOTP', 'sendWhatsApp']);

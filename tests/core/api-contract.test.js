@@ -15,6 +15,7 @@ import {
   RazorpayProvider,
   StripeProvider,
   CCAvenueProvider,
+  PhonePeProvider,
   MockPaymentProvider,
   ResendProvider,
   NodemailerProvider,
@@ -22,6 +23,7 @@ import {
   MockEmailProvider,
   MSG91Provider,
   MessageBirdProvider,
+  TwilioProvider,
   MockSMSProvider,
   CloudinaryProvider,
   S3Provider,
@@ -45,6 +47,7 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
         'MockStorageProvider',
         'NodemailerProvider',
         'PaymentProvider',
+        'PhonePeProvider',
         'RazorpayProvider',
         'ResendProvider',
         'S3Provider',
@@ -52,6 +55,7 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
         'SMSProvider',
         'StorageProvider',
         'StripeProvider',
+        'TwilioProvider',
         'ValidationError',
         'ccavenueCrypto',
         'createEmailProvider',
@@ -79,6 +83,7 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
         'CCAvenueProvider',
         'MockPaymentProvider',
         'PaymentProvider',
+        'PhonePeProvider',
         'RazorpayProvider',
         'StripeProvider',
         'ccavenueCrypto',
@@ -109,6 +114,7 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
         'MessageBirdProvider',
         'MockSMSProvider',
         'SMSProvider',
+        'TwilioProvider',
         'createSMSProvider'
       ].sort();
 
@@ -179,6 +185,31 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
           verifyPayment: 'function',
           verifyCallback: 'function',
           parseEncryptedResponse: 'function'
+        }
+      },
+      {
+        name: 'PhonePe',
+        instance: new PhonePeProvider({ merchantId: 'm_123', saltKey: 'key_123' }),
+        expectedCapabilities: ['createOrder', 'initiatePayment', 'verifyPayment', 'verifyCallback', 'refund', 'verifyWebhook'],
+        methodChecks: {
+          createOrder: 'function',
+          initiatePayment: 'function',
+          verifyPayment: 'function',
+          verifyCallback: 'function',
+          refund: 'function',
+          verifyWebhook: 'function'
+        }
+      },
+      {
+        name: 'Twilio',
+        instance: new TwilioProvider({ accountSid: 'AC_123', authToken: 'tok_123' }),
+        expectedCapabilities: ['sendSMS', 'sendOTP', 'verifyOTP', 'sendWhatsApp', 'verifyWebhook'],
+        methodChecks: {
+          sendSMS: 'function',
+          sendOTP: 'function',
+          verifyOTP: 'function',
+          sendWhatsApp: 'function',
+          verifyWebhook: 'function'
         }
       },
       {
@@ -365,18 +396,22 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
       const razorpay = new RazorpayProvider({ keyId: 'rzp_test_123', keySecret: 'secret_123', webhookSecret: 'whsec_123' });
       const stripe = new StripeProvider({ secretKey: 'sk_test_123', webhookSecret: 'whsec_456' });
       const ccavenue = new CCAvenueProvider({ merchantId: 'm1', accessCode: 'ac1', workingKey: 'wk1' });
+      const phonepe = new PhonePeProvider({ merchantId: 'm1', saltKey: 'SECRET_SALT_KEY' });
       const resend = new ResendProvider({ apiKey: 're_secret_key' });
       const ses = new SESProvider({ accessKeyId: 'AKIA_KEY', secretAccessKey: 'SECRET_ACCESS_KEY', region: 'us-east-1' });
+      const twilio = new TwilioProvider({ accountSid: 'AC_1', authToken: 'SECRET_AUTH_TOKEN' });
       const cloudinary = new CloudinaryProvider({ cloudName: 'cn', apiKey: 'ak', apiSecret: 'SECRET_API_SECRET' });
       const s3 = new S3Provider({ accessKeyId: 'AKIA_KEY', secretAccessKey: 'SECRET_KEY', region: 'us-east-1', bucket: 'b' });
 
-      const providers = [razorpay, stripe, ccavenue, resend, ses, cloudinary, s3];
+      const providers = [razorpay, stripe, ccavenue, phonepe, resend, ses, twilio, cloudinary, s3];
 
       for (const p of providers) {
         const keys = Object.keys(p);
         expect(keys).not.toContain('keySecret');
         expect(keys).not.toContain('secretKey');
         expect(keys).not.toContain('workingKey');
+        expect(keys).not.toContain('saltKey');
+        expect(keys).not.toContain('authToken');
         expect(keys).not.toContain('apiKey');
         expect(keys).not.toContain('secretAccessKey');
         expect(keys).not.toContain('apiSecret');
@@ -386,6 +421,8 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
         expect(json).not.toContain('secret_123');
         expect(json).not.toContain('sk_test_123');
         expect(json).not.toContain('whsec_123');
+        expect(json).not.toContain('SECRET_SALT_KEY');
+        expect(json).not.toContain('SECRET_AUTH_TOKEN');
         expect(json).not.toContain('SECRET_ACCESS_KEY');
         expect(json).not.toContain('SECRET_API_SECRET');
       }

@@ -22,6 +22,7 @@ A modular, reusable backend integration library for MERN stack applications. Thi
   - [Razorpay Integration](#razorpay-integration)
   - [CCAvenue Integration](#ccavenue-integration)
   - [Stripe Integration](#stripe-integration)
+  - [PhonePe Integration](#phonepe-integration)
 - [7. Email Providers](#7-email-providers)
   - [Resend Integration](#resend-integration)
   - [Nodemailer SMTP Integration](#nodemailer-smtp-integration)
@@ -29,6 +30,7 @@ A modular, reusable backend integration library for MERN stack applications. Thi
 - [8. SMS & OTP Providers](#8-sms--otp-providers)
   - [MSG91 Integration](#msg91-integration)
   - [MessageBird Integration](#messagebird-integration)
+  - [Twilio Integration](#twilio-integration)
 - [9. Storage Providers](#9-storage-providers)
   - [Cloudinary Integration](#cloudinary-integration)
   - [AWS S3 Integration](#aws-s3-integration)
@@ -89,8 +91,10 @@ mern-integrations/
 │   │   │   ├── ccavenue/
 │   │   │   │   ├── CCAvenueProvider.js   # CCAvenue redirect & callback implementation
 │   │   │   │   └── ccavenue.crypto.js    # Official AES-128-CBC crypto helpers
-│   │   │   └── stripe/
-│   │   │       └── StripeProvider.js     # Stripe SDK PaymentIntents implementation
+│   │   │   ├── stripe/
+│   │   │   │   └── StripeProvider.js     # Stripe SDK PaymentIntents implementation
+│   │   │   └── phonepe/
+│   │   │       └── PhonePeProvider.js    # PhonePe Standard Checkout & UPI implementation
 │   │   ├── factories/
 │   │   │   └── PaymentFactory.js         # Payment provider factory
 │   │   └── index.js                      # Payments module exports
@@ -115,8 +119,10 @@ mern-integrations/
 │   │   ├── providers/
 │   │   │   ├── msg91/
 │   │   │   │   └── MSG91Provider.js      # MSG91 SMS & OTP implementation
-│   │   │   └── messagebird/
-│   │   │       └── MessageBirdProvider.js# MessageBird WhatsApp & SMS implementation
+│   │   │   ├── messagebird/
+│   │   │   │   └── MessageBirdProvider.js# MessageBird WhatsApp & SMS implementation
+│   │   │   └── twilio/
+│   │   │       └── TwilioProvider.js     # Twilio SMS, WhatsApp & Verify v2 implementation
 │   │   ├── factories/
 │   │   │   └── SMSFactory.js             # SMS provider factory
 │   │   └── index.js                      # SMS module exports
@@ -133,6 +139,13 @@ mern-integrations/
 │   │   │   └── StorageFactory.js         # Storage provider factory
 │   │   └── index.js                      # Storage module exports
 │   │
+│   ├── testing/
+│   │   ├── MockPaymentProvider.js        # In-memory mock payment provider
+│   │   ├── MockEmailProvider.js          # In-memory mock email provider
+│   │   ├── MockSMSProvider.js            # In-memory mock SMS provider
+│   │   ├── MockStorageProvider.js        # In-memory mock storage provider
+│   │   └── index.js                      # Testing submodule exports
+│   │
 │   └── index.js                          # Root package entry point
 │
 ├── examples/
@@ -140,14 +153,16 @@ mern-integrations/
 │   ├── payments/
 │   │   ├── razorpay.example.js           # Razorpay payment & webhook example
 │   │   ├── stripe.example.js             # Stripe PaymentIntents & refund example
-│   │   └── ccavenue.example.js           # CCAvenue redirect descriptor & callback example
+│   │   ├── ccavenue.example.js           # CCAvenue redirect descriptor & callback example
+│   │   └── phonepe.example.js            # PhonePe checkout & webhook verification example
 │   ├── email/
 │   │   ├── resend.example.js             # Resend transactional email example
 │   │   ├── nodemailer.example.js         # Nodemailer SMTP & verify example
 │   │   └── ses.example.js                # Amazon SES email example
 │   ├── sms/
 │   │   ├── msg91.example.js              # MSG91 flow SMS & OTP example
-│   │   └── messagebird.example.js        # MessageBird SMS & WhatsApp template example
+│   │   ├── messagebird.example.js        # MessageBird SMS & WhatsApp template example
+│   │   └── twilio.example.js             # Twilio SMS, WhatsApp & Verify OTP example
 │   └── storage/
 │       ├── cloudinary.example.js         # Cloudinary buffer upload & URL generation
 │       └── s3.example.js                 # AWS S3 buffer upload & pre-signed URL example
@@ -159,14 +174,16 @@ mern-integrations/
 │   ├── payments/
 │   │   ├── razorpay.test.js              # Razorpay unit tests with SDK mocks
 │   │   ├── ccavenue.test.js              # CCAvenue unit tests with crypto vectors
-│   │   └── stripe.test.js                # Stripe unit tests with SDK mocks
+│   │   ├── stripe.test.js                # Stripe unit tests with SDK mocks
+│   │   └── phonepe.test.js               # PhonePe unit tests with HTTP mocks
 │   ├── email/
 │   │   ├── resend.test.js                # Resend unit tests with SDK mocks
 │   │   ├── nodemailer.test.js            # Nodemailer unit tests with mocks
 │   │   └── ses.test.js                   # Amazon SES unit tests with SDK mocks
 │   ├── sms/
 │   │   ├── msg91.test.js                 # MSG91 unit tests with mock transport
-│   │   └── messagebird.test.js           # MessageBird unit tests with mocks
+│   │   ├── messagebird.test.js           # MessageBird unit tests with mocks
+│   │   └── twilio.test.js                # Twilio unit tests with HTTP mocks
 │   └── storage/
 │       ├── cloudinary.test.js            # Cloudinary unit tests with mocks
 │       └── s3.test.js                    # AWS S3 unit tests with mocks
@@ -235,13 +252,16 @@ async function processOrder(customer) {
 | **Payments** | `razorpay` | `razorpay` | Optional peer dependency |
 | | `stripe` | `stripe` | Optional peer dependency |
 | | `ccavenue` | *None* | Uses Node.js built-in `node:crypto` |
+| | `phonepe` | *None* | Uses Node.js native `fetch` & `node:crypto` |
 | **Email** | `resend` | `resend` | Optional peer dependency |
 | | `nodemailer` | `nodemailer` | Optional peer dependency |
 | | `ses` / `amazon-ses` | `@aws-sdk/client-ses` | Optional peer dependency |
 | **SMS** | `msg91` | *None* | Uses Node.js native `fetch` |
 | | `messagebird` | *None* | Uses Node.js native `fetch` |
+| | `twilio` | *None* | Uses Node.js native `fetch` & `node:crypto` |
 | **Storage** | `cloudinary` | `cloudinary` | Optional peer dependency |
 | | `s3` / `aws-s3` | `@aws-sdk/client-s3`<br>`@aws-sdk/lib-storage`<br>`@aws-sdk/s3-request-presigner` | Optional peer dependencies |
+| **Testing** | `mock` (all domains) | *None* | Built-in in-memory providers under `mern-integrations/testing` |
 
 #### Installation Examples
 
@@ -312,19 +332,24 @@ import {
   createStorageProvider,
   RazorpayProvider,
   StripeProvider,
+  CCAvenueProvider,
+  PhonePeProvider,
   ResendProvider,
   NodemailerProvider,
+  SESProvider,
   MSG91Provider,
-  S3Provider,
+  MessageBirdProvider,
+  TwilioProvider,
   IntegrationError,
   ValidationError
 } from 'mern-integrations';
 
 // 2. Domain submodule imports
-import { createPaymentProvider, StripeProvider } from 'mern-integrations/payments';
+import { createPaymentProvider, PhonePeProvider, StripeProvider } from 'mern-integrations/payments';
 import { createEmailProvider, NodemailerProvider } from 'mern-integrations/email';
-import { createSMSProvider, MSG91Provider } from 'mern-integrations/sms';
+import { createSMSProvider, TwilioProvider, MSG91Provider } from 'mern-integrations/sms';
 import { createStorageProvider, S3Provider } from 'mern-integrations/storage';
+import { MockPaymentProvider, MockEmailProvider, MockSMSProvider, MockStorageProvider } from 'mern-integrations/testing';
 ```
 
 ### Supported Provider Capability Matrix
@@ -336,13 +361,19 @@ All concrete providers expose a read-only, immutable `capabilities` getter retur
 | **Payments** | `RazorpayProvider` | `createOrder`, `initiatePayment`, `verifyPayment`, `verifyCallback`, `refund`, `verifyWebhook` |
 | | `CCAvenueProvider` | `createOrder`, `initiatePayment`, `verifyPayment`, `verifyCallback`, `parseEncryptedResponse` |
 | | `StripeProvider` | `createOrder`, `initiatePayment`, `verifyPayment`, `verifyCallback`, `refund`, `verifyWebhook` |
+| | `PhonePeProvider` | `createOrder`, `initiatePayment`, `verifyPayment`, `verifyCallback`, `refund`, `verifyWebhook` |
+| | `MockPaymentProvider` | `createOrder`, `initiatePayment`, `verifyPayment`, `verifyCallback`, `refund`, `verifyWebhook` |
 | **Email** | `ResendProvider` | `send` |
 | | `NodemailerProvider` | `send`, `verify` |
 | | `SESProvider` | `send` |
+| | `MockEmailProvider` | `send`, `verify` |
 | **SMS & OTP** | `MSG91Provider` | `sendSMS`, `sendOTP`, `verifyOTP`, `resendOTP`, `sendWhatsApp` |
 | | `MessageBirdProvider` | `sendSMS`, `sendWhatsApp` |
+| | `TwilioProvider` | `sendSMS`, `sendOTP`, `verifyOTP`, `sendWhatsApp`, `verifyWebhook` |
+| | `MockSMSProvider` | `sendSMS`, `sendOTP`, `verifyOTP`, `resendOTP`, `sendWhatsApp`, `verifyWebhook` |
 | **Storage** | `CloudinaryProvider` | `upload`, `uploadBuffer`, `delete`, `getUrl` |
 | | `S3Provider` | `upload`, `uploadBuffer`, `uploadStream`, `delete`, `getUrl` |
+| | `MockStorageProvider` | `upload`, `uploadBuffer`, `uploadStream`, `delete`, `getUrl` |
 
 ---
 
@@ -370,6 +401,13 @@ CCAVENUE_BASE_URL=https://test.ccavenue.com
 STRIPE_SECRET_KEY=sk_test_YourStripeSecretKeyHere
 STRIPE_WEBHOOK_SECRET=whsec_YourWebhookSecretHere
 
+# PhonePe UPI & PG Credentials
+PHONEPE_MERCHANT_ID=PGTESTPAYUAT
+PHONEPE_SALT_KEY=099eb0cd-02cf-4e2a-8aca-3e6c6aff0399
+PHONEPE_SALT_INDEX=1
+PHONEPE_CALLBACK_URL=https://yourdomain.com/api/payments/phonepe/callback
+PHONEPE_TEST_MODE=true
+
 # Resend Email Credentials
 RESEND_API_KEY=re_YourResendApiKeyHere
 
@@ -390,6 +428,13 @@ AWS_SES_CONFIGURATION_SET=
 # MSG91 SMS & OTP Credentials
 MSG91_AUTH_KEY=YourMSG91AuthKeyHere
 MSG91_BASE_URL=https://control.msg91.com
+
+# Twilio SMS, WhatsApp & Verify Credentials
+TWILIO_ACCOUNT_SID=AC_YourTwilioAccountSidHere
+TWILIO_AUTH_TOKEN=YourTwilioAuthTokenHere
+TWILIO_FROM=+1234567890
+TWILIO_MESSAGING_SERVICE_SID=MG_YourMessagingServiceSidHere
+TWILIO_VERIFY_SERVICE_SID=VA_YourVerifyServiceSidHere
 ```
 
 > **Security Note:** Never commit API keys or secrets to source control. `.env` is ignored by `.gitignore`.
@@ -425,6 +470,16 @@ const stripe = createPaymentProvider({
   provider: 'stripe',
   secretKey: process.env.STRIPE_SECRET_KEY,
   webhookSecret: process.env.STRIPE_WEBHOOK_SECRET
+});
+
+// 4. PhonePe Provider (UPI & Standard Checkout)
+const phonepe = createPaymentProvider({
+  provider: 'phonepe',
+  merchantId: process.env.PHONEPE_MERCHANT_ID,
+  saltKey: process.env.PHONEPE_SALT_KEY,
+  saltIndex: process.env.PHONEPE_SALT_INDEX || 1,
+  callbackUrl: process.env.PHONEPE_CALLBACK_URL,
+  testMode: process.env.PHONEPE_TEST_MODE === 'true'
 });
 ```
 
@@ -479,6 +534,16 @@ const messagebird = createSMSProvider({
   apiKey: process.env.MESSAGEBIRD_API_KEY,
   channelId: process.env.MESSAGEBIRD_CHANNEL_ID,
   namespace: process.env.MESSAGEBIRD_NAMESPACE
+});
+
+// Twilio Provider (SMS, WhatsApp, Verify v2)
+const twilio = createSMSProvider({
+  provider: 'twilio',
+  accountSid: process.env.TWILIO_ACCOUNT_SID,
+  authToken: process.env.TWILIO_AUTH_TOKEN,
+  from: process.env.TWILIO_FROM,
+  messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID,
+  verifyServiceSid: process.env.TWILIO_VERIFY_SERVICE_SID
 });
 ```
 
@@ -697,6 +762,185 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
 - `secretKey`, `webhookSecret`, and SDK client instances are encapsulated inside ECMAScript private class fields (`#secretKey`, `#webhookSecret`, `#client`).
 - Credentials are never exposed via `Object.keys()`, `JSON.stringify()`, or normalized response objects.
 - All thrown `IntegrationError` instances sanitize and redact API secrets automatically before serialization.
+
+---
+
+### PhonePe Integration
+
+`PhonePeProvider` implements PhonePe's Standard Checkout PG and UPI payment workflows without any external SDK dependencies. It uses Node.js native `fetch` and `node:crypto` with SHA-256 base64 checksum generation (`X-VERIFY`).
+
+#### Environment Variables
+
+```env
+PHONEPE_MERCHANT_ID=PGTESTPAYUAT
+PHONEPE_SALT_KEY=099eb0cd-02cf-4e2a-8aca-3e6c6aff0399
+PHONEPE_SALT_INDEX=1
+PHONEPE_CALLBACK_URL=https://yourdomain.com/api/payments/phonepe/callback
+PHONEPE_TEST_MODE=true
+```
+
+#### Provider Initialization
+
+```javascript
+import { createPaymentProvider, PhonePeProvider } from 'mern-integrations';
+
+const phonepe = createPaymentProvider({
+  provider: 'phonepe',
+  merchantId: process.env.PHONEPE_MERCHANT_ID,
+  saltKey: process.env.PHONEPE_SALT_KEY,
+  saltIndex: process.env.PHONEPE_SALT_INDEX || 1,
+  callbackUrl: process.env.PHONEPE_CALLBACK_URL,
+  testMode: process.env.PHONEPE_TEST_MODE === 'true' // Pre-prod sandbox vs Production
+});
+
+// Or Direct Instantiation
+const directPhonePe = new PhonePeProvider({
+  merchantId: process.env.PHONEPE_MERCHANT_ID,
+  saltKey: process.env.PHONEPE_SALT_KEY,
+  saltIndex: 1,
+  testMode: true
+});
+```
+
+#### 1. Initiating Payment / Standard Checkout (`createOrder` / `initiatePayment`)
+
+Encodes the payment request into base64 JSON, signs with SHA-256 (`base64 + '/pg/v1/pay' + saltKey + '###' + saltIndex`), dispatches to PhonePe's `/pg/v1/pay` endpoint, and returns the redirect URL for customer checkout.
+
+```javascript
+const order = await phonepe.createOrder({
+  amount: 49900, // Amount in paise: ₹499.00 = 49900 paise
+  currency: 'INR',
+  merchantTransactionId: `MT_${Date.now()}`,
+  merchantUserId: 'user_123',
+  redirectUrl: 'https://yourdomain.com/checkout/success',
+  callbackUrl: 'https://yourdomain.com/api/payments/phonepe/callback',
+  mobileNumber: '9999999999',
+  message: 'Order #1001 payment'
+});
+
+// Redirect the customer's browser to the PhonePe payment page
+console.log('Redirect URL:', order.data.redirectUrl);
+```
+
+#### Normalized createOrder Response:
+```json
+{
+  "success": true,
+  "provider": "phonepe",
+  "data": {
+    "merchantTransactionId": "MT_1726000000",
+    "merchantId": "PGTESTPAYUAT",
+    "amount": 49900,
+    "currency": "INR",
+    "redirectUrl": "https://mercury-uat.phonepe.com/transact/pay?token=...",
+    "state": "PENDING",
+    "raw": { /* Upstream PhonePe API response */ }
+  }
+}
+```
+
+#### 2. Server-to-Server Status Verification (`verifyPayment`)
+
+Queries PhonePe's `/pg/v1/status/{merchantId}/{merchantTransactionId}` endpoint with `X-VERIFY` header to reliably verify payment completion independently of browser redirects.
+
+```javascript
+const verification = await phonepe.verifyPayment({
+  merchantTransactionId: 'MT_1726000000'
+});
+
+if (verification.data.verified) {
+  console.log('Payment succeeded! Transaction ID:', verification.data.transactionId);
+} else {
+  console.log('Payment not completed:', verification.data.state); // 'FAILED', 'PENDING'
+}
+```
+
+#### Normalized Verification Response:
+```json
+{
+  "success": true,
+  "provider": "phonepe",
+  "data": {
+    "verified": true,
+    "merchantTransactionId": "MT_1726000000",
+    "transactionId": "T2409131200001",
+    "amount": 49900,
+    "state": "COMPLETED",
+    "responseCode": "SUCCESS",
+    "paymentInstrument": { "type": "UPI" },
+    "raw": { /* Upstream PhonePe status response */ }
+  }
+}
+```
+
+#### 3. Handling Browser Redirect / Callback (`verifyCallback`)
+
+Decodes the base64-encoded response POSTed or GETed back by PhonePe to your callback URL and optionally validates checksum.
+
+```javascript
+app.post('/api/payments/phonepe/callback', async (req, res) => {
+  const { response } = req.body;
+  const signature = req.headers['x-verify'];
+
+  const result = await phonepe.verifyCallback({
+    response,
+    signature
+  });
+
+  if (result.data.verified) {
+    res.redirect('/order/success');
+  } else {
+    res.redirect('/order/failed');
+  }
+});
+```
+
+#### 4. Processing Refunds (`refund`)
+
+Issues a full or partial refund for a settled transaction via PhonePe's `/pg/v1/refund` API.
+
+```javascript
+const refund = await phonepe.refund({
+  merchantTransactionId: `REF_${Date.now()}`,
+  originalTransactionId: 'MT_1726000000',
+  amount: 49900,
+  callbackUrl: 'https://yourdomain.com/api/payments/phonepe/refund-callback'
+});
+
+console.log('Refund state:', refund.data.state);
+```
+
+#### 5. Webhook Signature Verification (`verifyWebhook`)
+
+Cryptographically validates server-to-server webhook callbacks using SHA-256 and constant-time comparison (`crypto.timingSafeEqual`).
+
+```javascript
+app.post('/api/webhooks/phonepe', async (req, res) => {
+  const signature = req.headers['x-verify'];
+
+  try {
+    const verification = await phonepe.verifyWebhook({
+      payload: req.body, // Object with { response } or raw Buffer/string
+      signature
+    });
+
+    if (!verification.data.verified) {
+      return res.status(400).send('Invalid webhook signature');
+    }
+
+    const event = verification.data.event;
+    console.log('Verified webhook event:', event);
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+});
+```
+
+#### Security Notes
+- `saltKey` is encapsulated inside `#saltKey` private class field and never leaks into `Object.keys()` or `JSON.stringify()`.
+- Checksum validation uses `crypto.timingSafeEqual()` to guard against timing attacks.
 
 ---
 
@@ -1198,6 +1442,169 @@ MessageBird does not support built-in OTP methods (`sendOTP`, `verifyOTP`, `rese
 
 ---
 
+### Twilio Integration
+
+`TwilioProvider` implements global SMS delivery, WhatsApp messaging, and two-factor authentication / OTP verification via Twilio Verify v2 REST APIs without requiring the heavyweight `twilio` SDK package. It uses Node.js native `fetch` and `node:crypto` with HMAC-SHA1 signature verification.
+
+#### Environment Variables
+
+```env
+TWILIO_ACCOUNT_SID=AC_YourTwilioAccountSidHere
+TWILIO_AUTH_TOKEN=YourTwilioAuthTokenHere
+TWILIO_FROM=+1234567890
+TWILIO_MESSAGING_SERVICE_SID=MG_YourMessagingServiceSidHere
+TWILIO_VERIFY_SERVICE_SID=VA_YourVerifyServiceSidHere
+```
+
+#### Provider Initialization
+
+```javascript
+import { createSMSProvider, TwilioProvider } from 'mern-integrations';
+
+const twilio = createSMSProvider({
+  provider: 'twilio',
+  accountSid: process.env.TWILIO_ACCOUNT_SID,
+  authToken: process.env.TWILIO_AUTH_TOKEN,
+  from: process.env.TWILIO_FROM,
+  messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID,
+  verifyServiceSid: process.env.TWILIO_VERIFY_SERVICE_SID
+});
+
+// Or Direct Instantiation
+const directTwilio = new TwilioProvider({
+  accountSid: process.env.TWILIO_ACCOUNT_SID,
+  authToken: process.env.TWILIO_AUTH_TOKEN,
+  from: '+1234567890'
+});
+```
+
+#### 1. Sending SMS (`sendSMS`)
+
+Dispatches SMS messages via Twilio's Programmable Messaging API (`POST /2010-04-01/Accounts/{accountSid}/Messages.json`).
+
+```javascript
+// Using configured 'from' or passing explicit 'from'
+const smsResult = await twilio.sendSMS({
+  to: '+15551234567',
+  message: 'Your order #1001 has been confirmed!'
+});
+
+// Using a Twilio Messaging Service SID
+const pooledSms = await twilio.sendSMS({
+  to: '+15551234567',
+  message: 'Your parcel is out for delivery.',
+  messagingServiceSid: 'MG_1234567890abcdef'
+});
+```
+
+#### Normalized sendSMS Response:
+```json
+{
+  "success": true,
+  "provider": "twilio",
+  "data": {
+    "messageId": "SM_1234567890abcdef",
+    "sid": "SM_1234567890abcdef",
+    "to": "+15551234567",
+    "from": "+1234567890",
+    "status": "queued",
+    "body": "Your order #1001 has been confirmed!",
+    "raw": { /* Upstream Twilio Message object */ }
+  }
+}
+```
+
+#### 2. Delivering & Verifying OTPs via Twilio Verify v2 (`sendOTP` & `verifyOTP`)
+
+Uses Twilio Verify v2 to automatically generate secure OTPs and manage token lifecycle without storing OTP secrets in your database.
+
+```javascript
+// 1. Dispatch OTP (Default channel: 'sms', also supports 'whatsapp', 'call', 'email')
+const otpResult = await twilio.sendOTP({
+  to: '+15551234567',
+  channel: 'sms'
+});
+
+console.log('OTP verification SID:', otpResult.data.sid); // e.g. 'VE_...'
+
+// 2. Verify User-Entered Code
+const checkResult = await twilio.verifyOTP({
+  to: '+15551234567',
+  code: '456789'
+});
+
+if (checkResult.data.verified) {
+  console.log('Phone number verified successfully!');
+} else {
+  console.log('Incorrect or expired code. Status:', checkResult.data.status); // 'pending'
+}
+```
+
+#### Normalized verifyOTP Response:
+```json
+{
+  "success": true,
+  "provider": "twilio",
+  "data": {
+    "verified": true,
+    "sid": "VE_1234567890abcdef",
+    "to": "+15551234567",
+    "status": "approved",
+    "valid": true,
+    "raw": { /* Upstream Twilio VerificationCheck object */ }
+  }
+}
+```
+
+#### 3. Sending WhatsApp Messages (`sendWhatsApp`)
+
+Sends conversational or template messages over WhatsApp. Automatically prepends the required `whatsapp:` prefix if not already present.
+
+```javascript
+// Free-form message within active 24-hr session
+const waResult = await twilio.sendWhatsApp({
+  to: '+15551234567',
+  message: 'Hello! How can we assist you with your order?'
+});
+
+// Pre-approved Twilio Content Template
+const templateResult = await twilio.sendWhatsApp({
+  to: '+15551234567',
+  contentSid: 'HX_1234567890abcdef',
+  contentVariables: { '1': 'John', '2': '1001' }
+});
+```
+
+#### 4. Webhook Signature Verification (`verifyWebhook`)
+
+Validates incoming status callbacks and inbound webhook requests using Twilio's official HMAC-SHA1 signature algorithm (`X-Twilio-Signature` header computed over the full URL and sorted POST parameters).
+
+```javascript
+app.post('/api/webhooks/twilio', express.urlencoded({ extended: false }), async (req, res) => {
+  const signature = req.headers['x-twilio-signature'];
+  const fullUrl = `https://${req.headers.host}${req.originalUrl}`;
+
+  const result = await twilio.verifyWebhook({
+    url: fullUrl,
+    params: req.body, // Parsed POST form parameters
+    signature
+  });
+
+  if (!result.data.verified) {
+    return res.status(403).send('Invalid Twilio signature');
+  }
+
+  console.log('Message SID:', req.body.MessageSid, 'Status:', req.body.MessageStatus);
+  res.status(200).send('<Response></Response>');
+});
+```
+
+#### Security Notes
+- `authToken` is encapsulated inside `#authToken` private class field and never leaks into `Object.keys()` or `JSON.stringify()`.
+- Webhook signature validation uses `crypto.timingSafeEqual()` against constant-time comparison attacks.
+
+---
+
 ## 9. Storage Providers
 
 ### Cloudinary Integration
@@ -1544,6 +1951,7 @@ Complete, runnable examples are organized under the [`examples/`](./examples) di
 npm run example:razorpay
 npm run example:stripe
 npm run example:ccavenue
+npm run example:phonepe
 
 # Email
 npm run example:resend
@@ -1553,6 +1961,7 @@ npm run example:ses
 # SMS / WhatsApp
 npm run example:msg91
 npm run example:messagebird
+npm run example:twilio
 
 # Storage
 npm run example:cloudinary

@@ -97,6 +97,15 @@ export class CCAvenueProvider extends PaymentProvider {
   parseEncryptedResponse(encResp: string): Record<string, string>;
 }
 
+export class PhonePeProvider extends PaymentProvider {
+  constructor(config?: { merchantId?: string; saltKey?: string; saltIndex?: string | number; baseUrl?: string; testMode?: boolean; redirectMode?: string; callbackUrl?: string; fetch?: typeof fetch });
+  createOrder(params: { amount: number; currency?: string; merchantTransactionId?: string; merchantUserId?: string; redirectUrl: string; callbackUrl?: string; mobileNumber?: string; paymentInstrument?: Record<string, any>; [key: string]: any }): Promise<NormalizedSuccess>;
+  verifyPayment(params: { merchantTransactionId: string }): Promise<NormalizedSuccess<{ id: string; merchantTransactionId: string; transactionId?: string; amount?: number; state: string; responseCode?: string; verified: boolean; status: string; raw: any }>>;
+  verifyCallback(params: { response: string; signature?: string }): Promise<NormalizedSuccess>;
+  refund(params: { merchantTransactionId: string; originalTransactionId: string; amount: number; callbackUrl?: string; [key: string]: any }): Promise<NormalizedSuccess>;
+  verifyWebhook(params: { payload: string | Buffer | Record<string, any>; signature: string; saltKey?: string; saltIndex?: string | number }): Promise<NormalizedSuccess<{ verified: boolean; event?: any }>>;
+}
+
 export namespace ccavenueCrypto {
   export function encrypt(plainText: string, workingKey: string): string;
   export function decrypt(encText: string, workingKey: string): string;
@@ -117,7 +126,7 @@ export class MockPaymentProvider extends PaymentProvider {
 }
 
 export function createPaymentProvider(config: {
-  provider: 'razorpay' | 'ccavenue' | 'stripe' | 'mock' | (string & {});
+  provider: 'razorpay' | 'ccavenue' | 'stripe' | 'phonepe' | 'mock' | (string & {});
   [key: string]: any;
 }): PaymentProvider;
 
@@ -198,6 +207,15 @@ export class MessageBirdProvider extends SMSProvider {
   sendWhatsApp(params: { to: string; templateName: string; channelId?: string; namespace?: string; languageCode?: string; params?: any[] }): Promise<NormalizedSuccess>;
 }
 
+export class TwilioProvider extends SMSProvider {
+  constructor(config?: { accountSid?: string; authToken?: string; from?: string; messagingServiceSid?: string; verifyServiceSid?: string; whatsappFrom?: string; baseUrl?: string; verifyBaseUrl?: string; fetch?: typeof fetch });
+  sendSMS(params: { to: string; message: string; from?: string; messagingServiceSid?: string; [key: string]: any }): Promise<NormalizedSuccess>;
+  sendOTP(params: { to: string; channel?: 'sms' | 'call' | 'whatsapp' | 'email'; serviceSid?: string; [key: string]: any }): Promise<NormalizedSuccess>;
+  verifyOTP(params: { to: string; otp: string; serviceSid?: string; [key: string]: any }): Promise<NormalizedSuccess<{ sid: string; serviceSid: string; to: string; status: string; valid: boolean; verified: boolean; raw: any }>>;
+  sendWhatsApp(params: { to: string; message?: string; from?: string; contentSid?: string; contentVariables?: Record<string, any>; [key: string]: any }): Promise<NormalizedSuccess>;
+  verifyWebhook(params: { url: string; params?: Record<string, any>; signature: string; authToken?: string }): Promise<NormalizedSuccess<{ verified: boolean }>>;
+}
+
 export class MockSMSProvider extends SMSProvider {
   constructor(config?: Record<string, any>);
   sendSMS(params: { to: string; message: string; senderId?: string; [key: string]: any }): Promise<NormalizedSuccess>;
@@ -213,7 +231,7 @@ export class MockSMSProvider extends SMSProvider {
 }
 
 export function createSMSProvider(config: {
-  provider: 'msg91' | 'messagebird' | 'mock' | (string & {});
+  provider: 'msg91' | 'messagebird' | 'twilio' | 'mock' | (string & {});
   [key: string]: any;
 }): SMSProvider;
 
