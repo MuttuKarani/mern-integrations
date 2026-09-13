@@ -24,6 +24,8 @@ This directory provides simple, realistic, and production-ready examples demonst
 | | **Twilio** | [`sms/twilio.example.js`](./sms/twilio.example.js) | *None* (uses native `fetch` & `node:crypto`) | `TWILIO_ACCOUNT_SID`<br>`TWILIO_AUTH_TOKEN`<br>`TWILIO_FROM` |
 | **Storage** | **Cloudinary** | [`storage/cloudinary.example.js`](./storage/cloudinary.example.js) | `npm install cloudinary` | `CLOUDINARY_CLOUD_NAME`<br>`CLOUDINARY_API_KEY`<br>`CLOUDINARY_API_SECRET` |
 | | **AWS S3** | [`storage/s3.example.js`](./storage/s3.example.js) | `npm install @aws-sdk/client-s3`<br>`@aws-sdk/lib-storage`<br>`@aws-sdk/s3-request-presigner` | `AWS_ACCESS_KEY_ID`<br>`AWS_SECRET_ACCESS_KEY`<br>`AWS_REGION`<br>`AWS_S3_BUCKET` |
+| **Middleware** | **Idempotency** | [`middleware/idempotency.example.js`](./middleware/idempotency.example.js) | *None* (uses `node:crypto`) | *None* (in-memory LRU store) |
+| | **Webhook Normalizer** | [`middleware/webhook-normalizer.example.js`](./middleware/webhook-normalizer.example.js) | *None* (pure function & Express middleware) | Optional provider secrets for verification |
 
 ---
 
@@ -45,9 +47,12 @@ examples/
 │   ├── msg91.example.js                # Flow SMS, OTP generation, verification & resend
 │   ├── messagebird.example.js          # Global SMS & WhatsApp HSM template messaging
 │   └── twilio.example.js               # Twilio SMS, WhatsApp & Verify OTP
-└── storage/
-    ├── cloudinary.example.js           # Buffer uploads, transformations & asset deletion
-    └── s3.example.js                   # S3 buffer upload, public & signed URLs
+├── storage/
+│   ├── cloudinary.example.js           # Buffer uploads, transformations & asset deletion
+│   └── s3.example.js                   # S3 buffer upload, public & signed URLs
+└── middleware/
+    ├── idempotency.example.js          # In-flight concurrency lock & response replay demo
+    └── webhook-normalizer.example.js   # Multi-provider webhook canonical normalization demo
 ```
 
 ---
@@ -87,6 +92,10 @@ npm run example:twilio
 # Storage
 npm run example:cloudinary
 npm run example:s3
+
+# Middlewares
+npm run example:idempotency
+npm run example:webhook-normalizer
 ```
 
 ### 3. Run Directly with Node.js
@@ -95,7 +104,7 @@ Alternatively, run any script directly using Node.js:
 
 ```bash
 node examples/payments/razorpay.example.js
-node examples/email/resend.example.js
+node examples/middleware/idempotency.example.js
 ```
 
 ---

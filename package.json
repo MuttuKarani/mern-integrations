@@ -15,6 +15,7 @@
     "./sms": "./src/sms/index.js",
     "./storage": "./src/storage/index.js",
     "./testing": "./src/testing/index.js",
+    "./middleware": "./src/middleware/index.js",
     "./package.json": "./package.json"
   },
   "files": [
@@ -46,7 +47,9 @@
     "example:twilio": "node examples/sms/twilio.example.js",
     "example:phonepe": "node examples/payments/phonepe.example.js",
     "example:cloudinary": "node examples/storage/cloudinary.example.js",
-    "example:s3": "node examples/storage/s3.example.js"
+    "example:s3": "node examples/storage/s3.example.js",
+    "example:idempotency": "node examples/middleware/idempotency.example.js",
+    "example:webhook-normalizer": "node examples/middleware/webhook-normalizer.example.js"
   },
   "keywords": [
     "mern",
