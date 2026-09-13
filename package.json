@@ -14,6 +14,7 @@
     "./email": "./src/email/index.js",
     "./sms": "./src/sms/index.js",
     "./storage": "./src/storage/index.js",
+    "./testing": "./src/testing/index.js",
     "./package.json": "./package.json"
   },
   "files": [

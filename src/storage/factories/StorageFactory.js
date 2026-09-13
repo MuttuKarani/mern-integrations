@@ -1,5 +1,6 @@
 import { CloudinaryProvider } from '../providers/cloudinary/CloudinaryProvider.js';
 import { S3Provider } from '../providers/s3/S3Provider.js';
+import { MockStorageProvider } from '../../testing/MockStorageProvider.js';
 import { IntegrationError } from '../../core/errors/IntegrationError.js';
 import { ValidationError } from '../../core/errors/ValidationError.js';
 import { validateRequiredObject, validateRequiredString } from '../../core/utils/validators.js';
@@ -8,7 +9,7 @@ import { validateRequiredObject, validateRequiredString } from '../../core/utils
  * Factory function to instantiate storage provider instances based on configuration.
  *
  * @param {Object} config - Configuration object.
- * @param {string} config.provider - Provider identifier name ('cloudinary' | 's3').
+ * @param {string} config.provider - Provider identifier name ('cloudinary' | 's3' | 'mock').
  * @param {string} [config.cloudName] - Cloudinary cloud name.
  * @param {string} [config.apiKey] - Cloudinary API key.
  * @param {string} [config.apiSecret] - Cloudinary API secret.
@@ -19,7 +20,7 @@ import { validateRequiredObject, validateRequiredString } from '../../core/utils
  * @param {string} [config.endpoint] - Optional custom S3 endpoint.
  * @param {boolean} [config.forcePathStyle] - S3 force path style.
  * @param {Object} [config.client] - Custom SDK client for testing/mocking.
- * @returns {CloudinaryProvider|S3Provider}
+ * @returns {CloudinaryProvider|S3Provider|MockStorageProvider}
  * @throws {ValidationError} If config or provider name is invalid.
  * @throws {IntegrationError} If the specified provider is not supported.
  */
@@ -38,9 +39,12 @@ export function createStorageProvider(config) {
     case 'awss3':
       return new S3Provider(config);
 
+    case 'mock':
+      return new MockStorageProvider(config);
+
     default:
       throw new IntegrationError(
-        `Unsupported storage provider '${config.provider}'. Supported providers: cloudinary, s3`,
+        `Unsupported storage provider '${config.provider}'. Supported providers: cloudinary, s3, mock`,
         {
           code: 'UNSUPPORTED_PROVIDER',
           statusCode: 400,
