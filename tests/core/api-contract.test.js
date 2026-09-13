@@ -3,6 +3,7 @@ import * as paymentsModule from '../../src/payments/index.js';
 import * as emailModule from '../../src/email/index.js';
 import * as smsModule from '../../src/sms/index.js';
 import * as storageModule from '../../src/storage/index.js';
+import * as testingModule from '../../src/testing/index.js';
 
 import {
   IntegrationError,
@@ -14,13 +15,17 @@ import {
   RazorpayProvider,
   StripeProvider,
   CCAvenueProvider,
+  MockPaymentProvider,
   ResendProvider,
   NodemailerProvider,
   SESProvider,
+  MockEmailProvider,
   MSG91Provider,
   MessageBirdProvider,
+  MockSMSProvider,
   CloudinaryProvider,
-  S3Provider
+  S3Provider,
+  MockStorageProvider
 } from '../../src/index.js';
 
 describe('Phase 19: API Contract & Regression Hardening', () => {
@@ -34,6 +39,10 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
         'IntegrationError',
         'MSG91Provider',
         'MessageBirdProvider',
+        'MockEmailProvider',
+        'MockPaymentProvider',
+        'MockSMSProvider',
+        'MockStorageProvider',
         'NodemailerProvider',
         'PaymentProvider',
         'RazorpayProvider',
@@ -68,6 +77,7 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
       const actualPaymentsExports = Object.keys(paymentsModule).sort();
       const expectedPaymentsExports = [
         'CCAvenueProvider',
+        'MockPaymentProvider',
         'PaymentProvider',
         'RazorpayProvider',
         'StripeProvider',
@@ -82,6 +92,7 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
       const actualEmailExports = Object.keys(emailModule).sort();
       const expectedEmailExports = [
         'EmailProvider',
+        'MockEmailProvider',
         'NodemailerProvider',
         'ResendProvider',
         'SESProvider',
@@ -96,6 +107,7 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
       const expectedSMSExports = [
         'MSG91Provider',
         'MessageBirdProvider',
+        'MockSMSProvider',
         'SMSProvider',
         'createSMSProvider'
       ].sort();
@@ -107,12 +119,25 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
       const actualStorageExports = Object.keys(storageModule).sort();
       const expectedStorageExports = [
         'CloudinaryProvider',
+        'MockStorageProvider',
         'S3Provider',
         'StorageProvider',
         'createStorageProvider'
       ].sort();
 
       expect(actualStorageExports).toEqual(expectedStorageExports);
+    });
+
+    it('mern-integrations/testing subpath must match exact expected exports list', () => {
+      const actualTestingExports = Object.keys(testingModule).sort();
+      const expectedTestingExports = [
+        'MockEmailProvider',
+        'MockPaymentProvider',
+        'MockSMSProvider',
+        'MockStorageProvider'
+      ].sort();
+
+      expect(actualTestingExports).toEqual(expectedTestingExports);
     });
   });
 
@@ -223,6 +248,71 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
           uploadStream: 'function',
           delete: 'function',
           getUrl: 'function'
+        }
+      },
+      {
+        name: 'MockPayment',
+        instance: new MockPaymentProvider(),
+        expectedCapabilities: ['createOrder', 'initiatePayment', 'verifyPayment', 'verifyCallback', 'refund', 'verifyWebhook'],
+        methodChecks: {
+          createOrder: 'function',
+          initiatePayment: 'function',
+          verifyPayment: 'function',
+          verifyCallback: 'function',
+          refund: 'function',
+          verifyWebhook: 'function',
+          getRecordedOrders: 'function',
+          getOrder: 'function',
+          getRecordedPayments: 'function',
+          getRecordedRefunds: 'function',
+          clearHistory: 'function',
+          reset: 'function'
+        }
+      },
+      {
+        name: 'MockEmail',
+        instance: new MockEmailProvider(),
+        expectedCapabilities: ['send', 'verify'],
+        methodChecks: {
+          send: 'function',
+          verify: 'function',
+          getSentEmails: 'function',
+          getLastSentEmail: 'function',
+          clearSentEmails: 'function',
+          reset: 'function'
+        }
+      },
+      {
+        name: 'MockSMS',
+        instance: new MockSMSProvider(),
+        expectedCapabilities: ['sendSMS', 'sendOTP', 'verifyOTP', 'resendOTP', 'sendWhatsApp'],
+        methodChecks: {
+          sendSMS: 'function',
+          sendOTP: 'function',
+          verifyOTP: 'function',
+          resendOTP: 'function',
+          sendWhatsApp: 'function',
+          getSentMessages: 'function',
+          getLastSentMessage: 'function',
+          getGeneratedOTPs: 'function',
+          clearHistory: 'function',
+          reset: 'function'
+        }
+      },
+      {
+        name: 'MockStorage',
+        instance: new MockStorageProvider(),
+        expectedCapabilities: ['upload', 'uploadBuffer', 'uploadStream', 'delete', 'getUrl'],
+        methodChecks: {
+          upload: 'function',
+          uploadBuffer: 'function',
+          uploadStream: 'function',
+          delete: 'function',
+          getUrl: 'function',
+          getFiles: 'function',
+          getFile: 'function',
+          clearFiles: 'function',
+          reset: 'function'
         }
       }
     ];

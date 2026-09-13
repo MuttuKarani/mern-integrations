@@ -13,20 +13,24 @@ import {
   RazorpayProvider,
   CCAvenueProvider,
   StripeProvider,
+  MockPaymentProvider,
   createPaymentProvider,
   ccavenueCrypto,
   EmailProvider,
   ResendProvider,
   NodemailerProvider,
   SESProvider,
+  MockEmailProvider,
   createEmailProvider,
   SMSProvider,
   MSG91Provider,
   MessageBirdProvider,
+  MockSMSProvider,
   createSMSProvider,
   StorageProvider,
   CloudinaryProvider,
   S3Provider,
+  MockStorageProvider,
   createStorageProvider
 } from '../src/index.js';
 
@@ -34,6 +38,7 @@ import * as paymentsModule from '../src/payments/index.js';
 import * as emailModule from '../src/email/index.js';
 import * as smsModule from '../src/sms/index.js';
 import * as storageModule from '../src/storage/index.js';
+import * as testingModule from '../src/testing/index.js';
 
 describe('Root Package Exports & Submodules', () => {
   describe('Core Errors and Validators', () => {
@@ -62,6 +67,7 @@ describe('Root Package Exports & Submodules', () => {
       expect(RazorpayProvider).toBeDefined();
       expect(CCAvenueProvider).toBeDefined();
       expect(StripeProvider).toBeDefined();
+      expect(MockPaymentProvider).toBeDefined();
       expect(typeof createPaymentProvider).toBe('function');
       expect(ccavenueCrypto).toBeDefined();
       expect(typeof ccavenueCrypto.encrypt).toBe('function');
@@ -73,6 +79,7 @@ describe('Root Package Exports & Submodules', () => {
       expect(paymentsModule.RazorpayProvider).toBe(RazorpayProvider);
       expect(paymentsModule.CCAvenueProvider).toBe(CCAvenueProvider);
       expect(paymentsModule.StripeProvider).toBe(StripeProvider);
+      expect(paymentsModule.MockPaymentProvider).toBe(MockPaymentProvider);
       expect(paymentsModule.createPaymentProvider).toBe(createPaymentProvider);
     });
   });
@@ -83,6 +90,7 @@ describe('Root Package Exports & Submodules', () => {
       expect(ResendProvider).toBeDefined();
       expect(NodemailerProvider).toBeDefined();
       expect(SESProvider).toBeDefined();
+      expect(MockEmailProvider).toBeDefined();
       expect(typeof createEmailProvider).toBe('function');
     });
 
@@ -91,6 +99,7 @@ describe('Root Package Exports & Submodules', () => {
       expect(emailModule.ResendProvider).toBe(ResendProvider);
       expect(emailModule.NodemailerProvider).toBe(NodemailerProvider);
       expect(emailModule.SESProvider).toBe(SESProvider);
+      expect(emailModule.MockEmailProvider).toBe(MockEmailProvider);
       expect(emailModule.createEmailProvider).toBe(createEmailProvider);
     });
   });
@@ -100,6 +109,7 @@ describe('Root Package Exports & Submodules', () => {
       expect(SMSProvider).toBeDefined();
       expect(MSG91Provider).toBeDefined();
       expect(MessageBirdProvider).toBeDefined();
+      expect(MockSMSProvider).toBeDefined();
       expect(typeof createSMSProvider).toBe('function');
     });
 
@@ -107,6 +117,7 @@ describe('Root Package Exports & Submodules', () => {
       expect(smsModule.SMSProvider).toBe(SMSProvider);
       expect(smsModule.MSG91Provider).toBe(MSG91Provider);
       expect(smsModule.MessageBirdProvider).toBe(MessageBirdProvider);
+      expect(smsModule.MockSMSProvider).toBe(MockSMSProvider);
       expect(smsModule.createSMSProvider).toBe(createSMSProvider);
     });
   });
@@ -116,6 +127,7 @@ describe('Root Package Exports & Submodules', () => {
       expect(StorageProvider).toBeDefined();
       expect(CloudinaryProvider).toBeDefined();
       expect(S3Provider).toBeDefined();
+      expect(MockStorageProvider).toBeDefined();
       expect(typeof createStorageProvider).toBe('function');
     });
 
@@ -123,7 +135,17 @@ describe('Root Package Exports & Submodules', () => {
       expect(storageModule.StorageProvider).toBe(StorageProvider);
       expect(storageModule.CloudinaryProvider).toBe(CloudinaryProvider);
       expect(storageModule.S3Provider).toBe(S3Provider);
+      expect(storageModule.MockStorageProvider).toBe(MockStorageProvider);
       expect(storageModule.createStorageProvider).toBe(createStorageProvider);
+    });
+  });
+
+  describe('Testing Module Exports', () => {
+    it('should export all mock providers from testing module', () => {
+      expect(testingModule.MockPaymentProvider).toBe(MockPaymentProvider);
+      expect(testingModule.MockEmailProvider).toBe(MockEmailProvider);
+      expect(testingModule.MockSMSProvider).toBe(MockSMSProvider);
+      expect(testingModule.MockStorageProvider).toBe(MockStorageProvider);
     });
   });
 
@@ -138,6 +160,9 @@ describe('Root Package Exports & Submodules', () => {
 
       const stripe = new StripeProvider({ secretKey: 'sk_test_1' });
       expect(stripe.capabilities).toEqual(['createOrder', 'initiatePayment', 'verifyPayment', 'verifyCallback', 'refund', 'verifyWebhook']);
+
+      const mock = new MockPaymentProvider();
+      expect(mock.capabilities).toEqual(['createOrder', 'initiatePayment', 'verifyPayment', 'verifyCallback', 'refund', 'verifyWebhook']);
     });
 
     it('should expose frozen capabilities array on email providers', () => {
@@ -149,6 +174,9 @@ describe('Root Package Exports & Submodules', () => {
 
       const ses = new SESProvider({ accessKeyId: 'k', secretAccessKey: 's', region: 'us-east-1' });
       expect(ses.capabilities).toEqual(['send']);
+
+      const mock = new MockEmailProvider();
+      expect(mock.capabilities).toEqual(['send', 'verify']);
     });
 
     it('should expose frozen capabilities array on SMS providers', () => {
@@ -157,6 +185,9 @@ describe('Root Package Exports & Submodules', () => {
 
       const messagebird = new MessageBirdProvider({ apiKey: 'mb_key_123' });
       expect(messagebird.capabilities).toEqual(['sendSMS', 'sendWhatsApp']);
+
+      const mock = new MockSMSProvider();
+      expect(mock.capabilities).toEqual(['sendSMS', 'sendOTP', 'verifyOTP', 'resendOTP', 'sendWhatsApp']);
     });
 
     it('should expose frozen capabilities array on storage providers', () => {
@@ -165,6 +196,9 @@ describe('Root Package Exports & Submodules', () => {
 
       const s3 = new S3Provider({ accessKeyId: 'k', secretAccessKey: 's', region: 'us-east-1', bucket: 'my-bucket' });
       expect(s3.capabilities).toEqual(['upload', 'uploadBuffer', 'uploadStream', 'delete', 'getUrl']);
+
+      const mock = new MockStorageProvider();
+      expect(mock.capabilities).toEqual(['upload', 'uploadBuffer', 'uploadStream', 'delete', 'getUrl']);
     });
   });
 
