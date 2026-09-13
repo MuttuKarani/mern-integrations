@@ -43,6 +43,8 @@
     "example:ses": "node examples/email/ses.example.js",
     "example:msg91": "node examples/sms/msg91.example.js",
     "example:messagebird": "node examples/sms/messagebird.example.js",
+    "example:twilio": "node examples/sms/twilio.example.js",
+    "example:phonepe": "node examples/payments/phonepe.example.js",
     "example:cloudinary": "node examples/storage/cloudinary.example.js",
     "example:s3": "node examples/storage/s3.example.js"
   },
@@ -57,11 +59,13 @@
     "razorpay",
     "ccavenue",
     "stripe",
+    "phonepe",
     "resend",
     "nodemailer",
     "ses",
     "msg91",
     "messagebird",
+    "twilio",
     "cloudinary",
     "s3",
     "aws"

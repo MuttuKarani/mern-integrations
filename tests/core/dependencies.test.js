@@ -387,11 +387,11 @@ describe('Optional Dependencies & Safe Lazy Loading Architecture', () => {
       }
 
       expect(() =>
-        createSMSProvider({ provider: 'twilio', accountSid: 'test' })
+        createSMSProvider({ provider: 'sinch', accountSid: 'test' })
       ).toThrow(IntegrationError);
 
       try {
-        createSMSProvider({ provider: 'twilio', accountSid: 'test' });
+        createSMSProvider({ provider: 'sinch', accountSid: 'test' });
       } catch (err) {
         expect(err.code).toBe('UNSUPPORTED_PROVIDER');
         expect(err.statusCode).toBe(400);

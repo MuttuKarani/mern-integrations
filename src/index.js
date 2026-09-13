@@ -10,6 +10,7 @@ export { PaymentProvider } from './payments/interfaces/PaymentProvider.js';
 export { RazorpayProvider } from './payments/providers/razorpay/RazorpayProvider.js';
 export { CCAvenueProvider } from './payments/providers/ccavenue/CCAvenueProvider.js';
 export { StripeProvider } from './payments/providers/stripe/StripeProvider.js';
+export { PhonePeProvider } from './payments/providers/phonepe/PhonePeProvider.js';
 export { MockPaymentProvider } from './testing/MockPaymentProvider.js';
 export { createPaymentProvider } from './payments/factories/PaymentFactory.js';
 export * as ccavenueCrypto from './payments/providers/ccavenue/ccavenue.crypto.js';
@@ -26,6 +27,7 @@ export { createEmailProvider } from './email/factories/EmailFactory.js';
 export { SMSProvider } from './sms/interfaces/SMSProvider.js';
 export { MSG91Provider } from './sms/providers/msg91/MSG91Provider.js';
 export { MessageBirdProvider } from './sms/providers/messagebird/MessageBirdProvider.js';
+export { TwilioProvider } from './sms/providers/twilio/TwilioProvider.js';
 export { MockSMSProvider } from './testing/MockSMSProvider.js';
 export { createSMSProvider } from './sms/factories/SMSFactory.js';
 

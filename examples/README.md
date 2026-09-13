@@ -15,11 +15,13 @@ This directory provides simple, realistic, and production-ready examples demonst
 | **Payments** | **Razorpay** | [`payments/razorpay.example.js`](./payments/razorpay.example.js) | `npm install razorpay` | `RAZORPAY_KEY_ID`<br>`RAZORPAY_KEY_SECRET`<br>`RAZORPAY_WEBHOOK_SECRET` |
 | | **Stripe** | [`payments/stripe.example.js`](./payments/stripe.example.js) | `npm install stripe` | `STRIPE_SECRET_KEY`<br>`STRIPE_WEBHOOK_SECRET` |
 | | **CCAvenue** | [`payments/ccavenue.example.js`](./payments/ccavenue.example.js) | *None* (uses `node:crypto`) | `CCAVENUE_MERCHANT_ID`<br>`CCAVENUE_ACCESS_CODE`<br>`CCAVENUE_WORKING_KEY` |
+| | **PhonePe** | [`payments/phonepe.example.js`](./payments/phonepe.example.js) | *None* (uses `fetch` & `node:crypto`) | `PHONEPE_MERCHANT_ID`<br>`PHONEPE_SALT_KEY`<br>`PHONEPE_CALLBACK_URL` |
 | **Email** | **Resend** | [`email/resend.example.js`](./email/resend.example.js) | `npm install resend` | `RESEND_API_KEY` |
 | | **Nodemailer** | [`email/nodemailer.example.js`](./email/nodemailer.example.js) | `npm install nodemailer` | `SMTP_HOST`, `SMTP_PORT`<br>`SMTP_USER`, `SMTP_PASS` |
 | | **Amazon SES** | [`email/ses.example.js`](./email/ses.example.js) | `npm install @aws-sdk/client-ses` | `AWS_ACCESS_KEY_ID`<br>`AWS_SECRET_ACCESS_KEY`<br>`AWS_REGION` |
 | **SMS** | **MSG91** | [`sms/msg91.example.js`](./sms/msg91.example.js) | *None* (uses native `fetch`) | `MSG91_AUTH_KEY`<br>`MSG91_SENDER_ID`<br>`MSG91_TEMPLATE_ID` |
 | | **MessageBird** | [`sms/messagebird.example.js`](./sms/messagebird.example.js) | *None* (uses native `fetch`) | `MESSAGEBIRD_API_KEY`<br>`MESSAGEBIRD_ORIGINATOR` |
+| | **Twilio** | [`sms/twilio.example.js`](./sms/twilio.example.js) | *None* (uses native `fetch` & `node:crypto`) | `TWILIO_ACCOUNT_SID`<br>`TWILIO_AUTH_TOKEN`<br>`TWILIO_FROM` |
 | **Storage** | **Cloudinary** | [`storage/cloudinary.example.js`](./storage/cloudinary.example.js) | `npm install cloudinary` | `CLOUDINARY_CLOUD_NAME`<br>`CLOUDINARY_API_KEY`<br>`CLOUDINARY_API_SECRET` |
 | | **AWS S3** | [`storage/s3.example.js`](./storage/s3.example.js) | `npm install @aws-sdk/client-s3`<br>`@aws-sdk/lib-storage`<br>`@aws-sdk/s3-request-presigner` | `AWS_ACCESS_KEY_ID`<br>`AWS_SECRET_ACCESS_KEY`<br>`AWS_REGION`<br>`AWS_S3_BUCKET` |
 
@@ -33,14 +35,16 @@ examples/
 ├── payments/
 │   ├── razorpay.example.js             # Order creation, HMAC verification & webhooks
 │   ├── stripe.example.js               # PaymentIntents, verification, refunds
-│   └── ccavenue.example.js             # AES-128-CBC redirect descriptors & callbacks
+│   ├── ccavenue.example.js             # AES-128-CBC redirect descriptors & callbacks
+│   └── phonepe.example.js              # Standard checkout redirect & webhook verification
 ├── email/
 │   ├── resend.example.js               # Modern transactional email with tags
 │   ├── nodemailer.example.js           # Custom SMTP transport, verification & attachments
 │   └── ses.example.js                  # Amazon SES v3 email with configuration sets
 ├── sms/
 │   ├── msg91.example.js                # Flow SMS, OTP generation, verification & resend
-│   └── messagebird.example.js          # Global SMS & WhatsApp HSM template messaging
+│   ├── messagebird.example.js          # Global SMS & WhatsApp HSM template messaging
+│   └── twilio.example.js               # Twilio SMS, WhatsApp & Verify OTP
 └── storage/
     ├── cloudinary.example.js           # Buffer uploads, transformations & asset deletion
     └── s3.example.js                   # S3 buffer upload, public & signed URLs
@@ -68,6 +72,7 @@ You can execute any example using convenience npm scripts:
 npm run example:razorpay
 npm run example:stripe
 npm run example:ccavenue
+npm run example:phonepe
 
 # Email
 npm run example:resend
@@ -77,6 +82,7 @@ npm run example:ses
 # SMS / WhatsApp
 npm run example:msg91
 npm run example:messagebird
+npm run example:twilio
 
 # Storage
 npm run example:cloudinary

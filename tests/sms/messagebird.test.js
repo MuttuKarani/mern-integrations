@@ -100,11 +100,11 @@ describe('MessageBirdProvider & WhatsApp / SMS Integration', () => {
       ).toThrow(IntegrationError);
 
       try {
-        createSMSProvider({ provider: 'twilio', apiKey: 'key-123' });
+        createSMSProvider({ provider: 'unsupported_sms', apiKey: 'key-123' });
       } catch (error) {
         expect(error.code).toBe('UNSUPPORTED_PROVIDER');
         expect(error.statusCode).toBe(400);
-        expect(error.provider).toBe('twilio');
+        expect(error.provider).toBe('unsupported_sms');
       }
     });
   });
