@@ -33,7 +33,13 @@ import {
   CloudinaryProvider,
   S3Provider,
   MockStorageProvider,
-  createStorageProvider
+  createStorageProvider,
+  InMemoryIdempotencyStore,
+  createIdempotencyMiddleware,
+  idempotencyMiddleware,
+  normalizeWebhookEvent,
+  createWebhookNormalizer,
+  webhookNormalizerMiddleware
 } from '../src/index.js';
 
 import * as paymentsModule from '../src/payments/index.js';
@@ -41,6 +47,7 @@ import * as emailModule from '../src/email/index.js';
 import * as smsModule from '../src/sms/index.js';
 import * as storageModule from '../src/storage/index.js';
 import * as testingModule from '../src/testing/index.js';
+import * as middlewareModule from '../src/middleware/index.js';
 
 describe('Root Package Exports & Submodules', () => {
   describe('Core Errors and Validators', () => {
@@ -152,6 +159,24 @@ describe('Root Package Exports & Submodules', () => {
       expect(testingModule.MockEmailProvider).toBe(MockEmailProvider);
       expect(testingModule.MockSMSProvider).toBe(MockSMSProvider);
       expect(testingModule.MockStorageProvider).toBe(MockStorageProvider);
+    });
+  });
+
+  describe('Enterprise Middlewares Exports', () => {
+    it('should export middleware classes and functions from root and submodule', () => {
+      expect(InMemoryIdempotencyStore).toBeDefined();
+      expect(typeof createIdempotencyMiddleware).toBe('function');
+      expect(typeof idempotencyMiddleware).toBe('function');
+      expect(typeof normalizeWebhookEvent).toBe('function');
+      expect(typeof createWebhookNormalizer).toBe('function');
+      expect(typeof webhookNormalizerMiddleware).toBe('function');
+
+      expect(middlewareModule.InMemoryIdempotencyStore).toBe(InMemoryIdempotencyStore);
+      expect(middlewareModule.createIdempotencyMiddleware).toBe(createIdempotencyMiddleware);
+      expect(middlewareModule.idempotencyMiddleware).toBe(idempotencyMiddleware);
+      expect(middlewareModule.normalizeWebhookEvent).toBe(normalizeWebhookEvent);
+      expect(middlewareModule.createWebhookNormalizer).toBe(createWebhookNormalizer);
+      expect(middlewareModule.webhookNormalizerMiddleware).toBe(webhookNormalizerMiddleware);
     });
   });
 

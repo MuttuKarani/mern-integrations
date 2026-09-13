@@ -34,16 +34,19 @@ A modular, reusable backend integration library for MERN stack applications. Thi
 - [9. Storage Providers](#9-storage-providers)
   - [Cloudinary Integration](#cloudinary-integration)
   - [AWS S3 Integration](#aws-s3-integration)
-- [10. Error Handling & Capability Introspection](#10-error-handling--capability-introspection)
+- [10. Enterprise Middlewares](#10-enterprise-middlewares)
+  - [Idempotency Key Middleware](#idempotency-key-middleware)
+  - [Unified Webhook Event Normalizer](#unified-webhook-event-normalizer)
+- [11. Error Handling & Capability Introspection](#11-error-handling--capability-introspection)
   - [Structured Error Classes](#structured-error-classes)
   - [Standard Error Codes & Failure Categories](#standard-error-codes--failure-categories)
   - [Provider Capabilities Contract](#provider-capabilities-contract)
   - [Webhook Raw Body Security Notice](#webhook-raw-body-security-notice)
-- [11. Example Scripts](#11-example-scripts)
-- [12. Testing & Test Coverage](#12-testing--test-coverage)
-- [13. CI/CD & Quality Gates](#13-cicd--quality-gates)
-- [14. Development & Packaging Workflow](#14-development--packaging-workflow)
-- [15. Developer Onboarding Guide](#15-developer-onboarding-guide)
+- [12. Example Scripts](#12-example-scripts)
+- [13. Testing & Test Coverage](#13-testing--test-coverage)
+- [14. CI/CD & Quality Gates](#14-cicd--quality-gates)
+- [15. Development & Packaging Workflow](#15-development--packaging-workflow)
+- [16. Developer Onboarding Guide](#16-developer-onboarding-guide)
   - [Getting Started](#getting-started)
   - [Adding a New Provider](#adding-a-new-provider)
 
@@ -146,6 +149,15 @@ mern-integrations/
 │   │   ├── MockStorageProvider.js        # In-memory mock storage provider
 │   │   └── index.js                      # Testing submodule exports
 │   │
+│   ├── middleware/
+│   │   ├── idempotency/
+│   │   │   ├── InMemoryIdempotencyStore.js # Zero-dependency LRU+TTL in-memory cache
+│   │   │   └── idempotencyMiddleware.js     # Enterprise idempotency with concurrency locks
+│   │   ├── webhooks/
+│   │   │   ├── normalizeWebhookEvent.js    # Multi-provider webhook canonical normalizer
+│   │   │   └── webhookNormalizerMiddleware.js # Express middleware with signature verification
+│   │   └── index.js                        # Middleware submodule exports
+│   │
 │   └── index.js                          # Root package entry point
 │
 ├── examples/
@@ -163,13 +175,17 @@ mern-integrations/
 │   │   ├── msg91.example.js              # MSG91 flow SMS & OTP example
 │   │   ├── messagebird.example.js        # MessageBird SMS & WhatsApp template example
 │   │   └── twilio.example.js             # Twilio SMS, WhatsApp & Verify OTP example
-│   └── storage/
-│       ├── cloudinary.example.js         # Cloudinary buffer upload & URL generation
-│       └── s3.example.js                 # AWS S3 buffer upload & pre-signed URL example
+│   ├── storage/
+│   │   ├── cloudinary.example.js         # Cloudinary buffer upload & URL generation
+│   │   └── s3.example.js                 # AWS S3 buffer upload & pre-signed URL example
+│   └── middleware/
+│       ├── idempotency.example.js        # Enterprise idempotency & replay cache example
+│       └── webhook-normalizer.example.js # Multi-provider webhook canonical normalization example
 │
 ├── tests/
 │   ├── index.test.js                     # Root exports and submodule tests
 │   ├── core/
+│   │   ├── api-contract.test.js          # Package export contract and integrity tests
 │   │   └── dependencies.test.js          # Optional dependencies & lazy-loading tests
 │   ├── payments/
 │   │   ├── razorpay.test.js              # Razorpay unit tests with SDK mocks
@@ -184,9 +200,12 @@ mern-integrations/
 │   │   ├── msg91.test.js                 # MSG91 unit tests with mock transport
 │   │   ├── messagebird.test.js           # MessageBird unit tests with mocks
 │   │   └── twilio.test.js                # Twilio unit tests with HTTP mocks
-│   └── storage/
-│       ├── cloudinary.test.js            # Cloudinary unit tests with mocks
-│       └── s3.test.js                    # AWS S3 unit tests with mocks
+│   ├── storage/
+│   │   ├── cloudinary.test.js            # Cloudinary unit tests with mocks
+│   │   └── s3.test.js                    # AWS S3 unit tests with mocks
+│   └── middleware/
+│       ├── idempotency.test.js           # Idempotency middleware & cache tests
+│       └── webhook-normalizer.test.js    # Webhook normalizer & signature tests
 │
 ├── .env.example
 ├── .gitignore
@@ -1830,7 +1849,191 @@ const deleteResult = await s3.delete({
 
 ---
 
-## 10. Error Handling & Capability Introspection
+## 10. Enterprise Middlewares
+
+Enterprise-grade MERN backends handling money, sensitive customer communications, and webhooks require robust protection against duplicate transactions and inconsistent provider webhook formats. `mern-integrations` provides two production-grade, zero-dependency middlewares designed specifically for Express applications.
+
+### Idempotency Key Middleware
+
+Network timeouts, user double-clicks, and mobile connection retries frequently cause duplicate POST/PUT/PATCH mutations. The idempotency middleware prevents duplicate operations by verifying the client's `Idempotency-Key` HTTP header.
+
+#### How It Works:
+1. **Concurrency Lock (`409 Conflict`)**: When a request with an `Idempotency-Key` begins execution, an in-flight lock is acquired. If a concurrent duplicate request arrives while the first is still processing, it is immediately rejected with HTTP `409 Conflict`.
+2. **Deterministic Payload Fingerprinting (`422 Unprocessable Entity`)**: The middleware computes a SHA-256 hash of the HTTP method, URL path, and request body. If a subsequent request reuses an `Idempotency-Key` but changes the payload, it is rejected with HTTP `422 Unprocessable Entity` (`IDEMPOTENCY_PAYLOAD_MISMATCH`).
+3. **Response Caching & Instant Replay (`Idempotent-Replayed: true`)**: Once the handler completes with a 2xx or 4xx status code, the response status, headers, and body are cached in the store. Subsequent identical requests receive the cached response immediately with the header `Idempotent-Replayed: true` without re-executing your database mutations or gateway calls.
+4. **Transient Error Eviction**: If your route handler fails with a 5xx server error, the lock is automatically evicted from the store so clients can safely retry.
+5. **Zero-Dependency LRU + TTL In-Memory Store**: Includes `InMemoryIdempotencyStore` featuring automatic Least-Recently-Used eviction when max capacity is reached, per-key TTL expiration, and automatic background cleanup timers. Supports custom Redis or database stores conforming to the simple store interface (`get`, `set`, `delete`).
+
+#### Usage in Express:
+
+```javascript
+import express from 'express';
+import { idempotencyMiddleware, createIdempotencyMiddleware, InMemoryIdempotencyStore } from 'mern-integrations/middleware';
+// or from root: import { idempotencyMiddleware } from 'mern-integrations';
+
+const app = express();
+app.use(express.json());
+
+// Option A: Use the default global middleware (default in-memory store, 24h TTL)
+app.post('/api/checkout/orders', idempotencyMiddleware(), async (req, res) => {
+  const { amount, customerId } = req.body;
+  // This controller code executes only ONCE per Idempotency-Key
+  const order = await paymentService.charge({ amount, customerId });
+  res.status(201).json(order);
+});
+
+// Option B: Custom configured middleware (e.g. 5-minute TTL, custom store)
+const customStore = new InMemoryIdempotencyStore({
+  maxEntries: 10000,
+  defaultTtlMs: 5 * 60 * 1000 // 5 minutes
+});
+
+const checkoutIdempotency = createIdempotencyMiddleware({
+  store: customStore,
+  headerName: 'idempotency-key', // Header is matched case-insensitively
+  required: false,               // Allow non-idempotent requests if header omitted
+  ttlMs: 300000,                 // 5 minutes
+  lockTimeoutMs: 30000           // In-flight lock expiry
+});
+
+app.post('/api/payments/charge', checkoutIdempotency, async (req, res) => {
+  // ...
+});
+```
+
+#### Custom Store Interface (e.g. Redis / MongoDB):
+
+You can easily supply your own distributed store (such as Redis or MongoDB) by implementing 3 simple asynchronous methods:
+
+```javascript
+const redisIdempotencyStore = {
+  async get(key) {
+    const raw = await redisClient.get(`idempotency:${key}`);
+    return raw ? JSON.parse(raw) : null;
+  },
+  async set(key, entry, ttlMs) {
+    await redisClient.set(`idempotency:${key}`, JSON.stringify(entry), 'PX', ttlMs);
+  },
+  async delete(key) {
+    await redisClient.del(`idempotency:${key}`);
+  }
+};
+
+app.use(createIdempotencyMiddleware({ store: redisIdempotencyStore }));
+```
+
+---
+
+### Unified Webhook Event Normalizer
+
+Payment gateways, SMS aggregators, and email delivery networks each emit radically different webhook schemas (e.g. Stripe uses `event.type` + `event.data.object`, Razorpay uses `event.event` + `event.payload.payment.entity`, PhonePe uses Base64 encoded payloads, Twilio uses urlencoded form bodies).
+
+The **Unified Webhook Event Normalizer** translates payloads from all supported providers into a single, predictable canonical schema: `UnifiedWebhookEvent`.
+
+#### Canonical Webhook Event Schema:
+
+```typescript
+interface UnifiedWebhookEvent {
+  id: string;              // Standardized event ID or transaction identifier
+  provider: string;        // 'stripe' | 'razorpay' | 'phonepe' | 'twilio' | 'msg91' | 'resend' | 'custom'
+  type: string;            // Standardized event type (e.g. 'payment.succeeded', 'refund.processed', 'sms.delivered')
+  originalType: string;    // Raw event name sent by the provider (e.g. 'payment_intent.succeeded')
+  timestamp: string;       // ISO 8601 UTC timestamp
+  resourceId: string;      // Gateway transaction/resource ID (e.g. 'pi_123', 'pay_abc', 'SMxxxxxx')
+  status: string;          // Normalized status ('succeeded' | 'failed' | 'pending' | 'delivered' | 'refunded' | ...)
+  amount: number | null;   // Standardized smallest currency unit (paise / cents) if applicable
+  currency: string | null; // ISO currency code ('INR', 'USD') or null
+  data: Record<string, any>; // Normalized entity object
+  raw: any;                // Complete raw unmodified event payload
+}
+```
+
+#### Standardized Event Mappings:
+
+| Provider | Gateway Event | Canonical Event Type (`type`) | Normalized Status |
+|---|---|---|---|
+| **Stripe** | `payment_intent.succeeded` | `payment.succeeded` | `succeeded` |
+| **Stripe** | `payment_intent.payment_failed` | `payment.failed` | `failed` |
+| **Stripe** | `charge.refunded` | `refund.processed` | `refunded` |
+| **Razorpay** | `payment.captured` | `payment.succeeded` | `succeeded` |
+| **Razorpay** | `payment.failed` | `payment.failed` | `failed` |
+| **Razorpay** | `refund.processed` | `refund.processed` | `refunded` |
+| **PhonePe** | `PAYMENT_SUCCESS` | `payment.succeeded` | `succeeded` |
+| **PhonePe** | `PAYMENT_ERROR` | `payment.failed` | `failed` |
+| **Twilio** | `delivered` | `sms.delivered` | `delivered` |
+| **Twilio** | `failed` / `undelivered` | `sms.failed` | `failed` |
+| **MSG91** | `1` (Delivered) | `sms.delivered` | `delivered` |
+| **MSG91** | `2` (Failed) | `sms.failed` | `failed` |
+| **Resend** | `email.delivered` | `email.delivered` | `delivered` |
+| **Resend** | `email.bounced` | `email.bounced` | `bounced` |
+
+#### Pure Function Normalization (`normalizeWebhookEvent`):
+
+Use the pure function anywhere in your app, cloud functions, or queue workers:
+
+```javascript
+import { normalizeWebhookEvent } from 'mern-integrations';
+
+const canonicalEvent = normalizeWebhookEvent({
+  provider: 'stripe',
+  payload: stripePayload
+});
+
+console.log(canonicalEvent.type);       // 'payment.succeeded'
+console.log(canonicalEvent.resourceId); // 'pi_3MtwBwLkdIwHu7ix28a3tqPa'
+console.log(canonicalEvent.amount);     // 2000
+```
+
+#### Express Webhook Route with Automatic Signature Verification:
+
+The `webhookNormalizerMiddleware` automatically verifies the cryptographic signature (using your provider instance) and attaches `req.webhookEvent` to the Express request object:
+
+```javascript
+import express from 'express';
+import { 
+  rawBodyMiddleware, 
+  createWebhookNormalizer, 
+  createPaymentProvider 
+} from 'mern-integrations';
+
+const app = express();
+const razorpay = createPaymentProvider({ provider: 'razorpay' });
+
+// Setup webhook route with raw body capture and unified normalizer:
+app.post(
+  '/api/webhooks/razorpay',
+  rawBodyMiddleware(),
+  createWebhookNormalizer({
+    provider: 'razorpay',
+    providerInstance: razorpay,
+    verifySignature: true, // Automatically verifies x-razorpay-signature header
+    signatureHeader: 'x-razorpay-signature'
+  }),
+  async (req, res) => {
+    // req.webhookEvent contains the verified, normalized canonical event
+    const event = req.webhookEvent;
+    console.log(`[Webhook] Provider: ${event.provider}, Type: ${event.type}, ID: ${event.resourceId}`);
+
+    switch (event.type) {
+      case 'payment.succeeded':
+        await orderService.markPaid(event.resourceId, event.amount);
+        break;
+      case 'payment.failed':
+        await orderService.markFailed(event.resourceId);
+        break;
+      case 'refund.processed':
+        await orderService.recordRefund(event.resourceId, event.amount);
+        break;
+    }
+
+    res.status(200).json({ status: 'ok' });
+  }
+);
+```
+
+---
+
+## 11. Error Handling & Capability Introspection
 
 ### Structured Error Classes
 
@@ -1942,7 +2145,7 @@ const response = await withRetry(
 
 ---
 
-## 11. Example Scripts
+## 12. Example Scripts
 
 Complete, runnable examples are organized under the [`examples/`](./examples) directory. See [`examples/README.md`](./examples/README.md) for environment variables and full instructions.
 
@@ -1966,11 +2169,15 @@ npm run example:twilio
 # Storage
 npm run example:cloudinary
 npm run example:s3
+
+# Middlewares
+npm run example:idempotency
+npm run example:webhook-normalizer
 ```
 
 ---
 
-## 12. Testing & Test Coverage
+## 13. Testing & Test Coverage
 
 The test suite uses **Jest** with native ES Module support. All external provider SDKs, network transports, and cloud services are 100% mocked with zero live network calls:
 
@@ -1996,7 +2203,7 @@ npm run test:watch
 
 ---
 
-## 13. CI/CD & Quality Gates
+## 14. CI/CD & Quality Gates
 
 The repository includes a GitHub Actions Continuous Integration pipeline located at `.github/workflows/ci.yml`.
 
@@ -2010,7 +2217,7 @@ The repository includes a GitHub Actions Continuous Integration pipeline located
 
 ---
 
-## 14. Development & Packaging Workflow
+## 15. Development & Packaging Workflow
 
 ### Pre-Publication Packaging Verification
 
@@ -2036,7 +2243,7 @@ cd /path/to/your-mern-backend && npm link mern-integrations
 
 ---
 
-## 15. Developer Onboarding Guide
+## 16. Developer Onboarding Guide
 
 ### Getting Started
 

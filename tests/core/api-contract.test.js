@@ -4,6 +4,7 @@ import * as emailModule from '../../src/email/index.js';
 import * as smsModule from '../../src/sms/index.js';
 import * as storageModule from '../../src/storage/index.js';
 import * as testingModule from '../../src/testing/index.js';
+import * as middlewareModule from '../../src/middleware/index.js';
 
 import {
   IntegrationError,
@@ -27,7 +28,13 @@ import {
   MockSMSProvider,
   CloudinaryProvider,
   S3Provider,
-  MockStorageProvider
+  MockStorageProvider,
+  InMemoryIdempotencyStore,
+  createIdempotencyMiddleware,
+  idempotencyMiddleware,
+  normalizeWebhookEvent,
+  createWebhookNormalizer,
+  webhookNormalizerMiddleware
 } from '../../src/index.js';
 
 describe('Phase 19: API Contract & Regression Hardening', () => {
@@ -38,6 +45,7 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
         'CCAvenueProvider',
         'CloudinaryProvider',
         'EmailProvider',
+        'InMemoryIdempotencyStore',
         'IntegrationError',
         'MSG91Provider',
         'MessageBirdProvider',
@@ -59,9 +67,13 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
         'ValidationError',
         'ccavenueCrypto',
         'createEmailProvider',
+        'createIdempotencyMiddleware',
         'createPaymentProvider',
         'createSMSProvider',
         'createStorageProvider',
+        'createWebhookNormalizer',
+        'idempotencyMiddleware',
+        'normalizeWebhookEvent',
         'rawBodyMiddleware',
         'validateAmountInSmallestUnit',
         'validateEmail',
@@ -71,6 +83,7 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
         'validateRawPayload',
         'validateRequiredObject',
         'validateRequiredString',
+        'webhookNormalizerMiddleware',
         'withRetry'
       ].sort();
 
@@ -144,6 +157,21 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
       ].sort();
 
       expect(actualTestingExports).toEqual(expectedTestingExports);
+    });
+
+    it('mern-integrations/middleware subpath must match exact expected exports list', () => {
+      const actualMiddlewareExports = Object.keys(middlewareModule).sort();
+      const expectedMiddlewareExports = [
+        'InMemoryIdempotencyStore',
+        'createIdempotencyMiddleware',
+        'createWebhookNormalizer',
+        'idempotencyMiddleware',
+        'normalizeWebhookEvent',
+        'rawBodyMiddleware',
+        'webhookNormalizerMiddleware'
+      ].sort();
+
+      expect(actualMiddlewareExports).toEqual(expectedMiddlewareExports);
     });
   });
 

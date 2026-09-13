@@ -286,3 +286,109 @@ export function createStorageProvider(config: {
   provider: 'cloudinary' | 's3' | 'aws-s3' | 'awss3' | 'mock' | (string & {});
   [key: string]: any;
 }): StorageProvider;
+
+// ==========================================
+// Enterprise Middlewares
+// ==========================================
+
+export interface IdempotencyRecord {
+  status: 'IN_FLIGHT' | 'COMPLETED';
+  fingerprint: string;
+  response?: {
+    statusCode: number;
+    headers: Record<string, any>;
+    body: any;
+  };
+  createdAt: number;
+  expiresAt?: number;
+}
+
+export interface IdempotencyStore {
+  get(key: string): Promise<IdempotencyRecord | null> | IdempotencyRecord | null;
+  set(key: string, record: IdempotencyRecord, ttlMs?: number): Promise<void> | void;
+  delete?(key: string): Promise<boolean | void> | boolean | void;
+  clear?(): void;
+  size?: number;
+}
+
+export class InMemoryIdempotencyStore implements IdempotencyStore {
+  constructor(options?: { maxEntries?: number; cleanupIntervalMs?: number });
+  get(key: string): Promise<IdempotencyRecord | null>;
+  set(key: string, record: IdempotencyRecord, ttlMs?: number): Promise<void>;
+  delete(key: string): Promise<boolean>;
+  clear(): void;
+  cleanup(): number;
+  destroy(): void;
+  readonly size: number;
+}
+
+export interface IdempotencyOptions {
+  headerName?: string;
+  required?: boolean;
+  ttlMs?: number;
+  lockTimeoutMs?: number;
+  enforceMethods?: string[];
+  store?: IdempotencyStore;
+  hashFn?: (req: any) => string;
+}
+
+export function createIdempotencyMiddleware(options?: IdempotencyOptions): RequestHandler;
+export const idempotencyMiddleware: typeof createIdempotencyMiddleware;
+
+export type UnifiedEventType =
+  | 'payment.success'
+  | 'payment.failed'
+  | 'payment.pending'
+  | 'refund.success'
+  | 'refund.failed'
+  | 'dispute.created'
+  | 'message.sent'
+  | 'message.delivered'
+  | 'message.failed'
+  | 'message.queued'
+  | 'email.sent'
+  | 'email.delivered'
+  | 'email.bounced'
+  | 'email.opened'
+  | 'email.clicked'
+  | 'unknown'
+  | (string & {});
+
+export interface UnifiedWebhookEvent<T = any> {
+  id: string;
+  provider: string;
+  eventType: UnifiedEventType;
+  originalEvent: string;
+  timestamp: Date;
+  livemode: boolean;
+  resource: {
+    id: string;
+    orderId?: string | null;
+    amount?: number | null;
+    currency?: string | null;
+    status?: string | null;
+    customer?: {
+      id?: string | null;
+      email?: string | null;
+      phone?: string | null;
+      name?: string | null;
+    };
+    metadata?: Record<string, any>;
+    [key: string]: any;
+  };
+  raw: T;
+}
+
+export function normalizeWebhookEvent<T = any>(provider: string, rawPayload: T): UnifiedWebhookEvent<T>;
+
+export interface WebhookNormalizerOptions {
+  provider?: string | ((req: any) => string);
+  getProvider?: any | ((req: any, providerName: string) => any);
+  verifySignature?: boolean;
+  signatureHeader?: string;
+  onVerificationError?: (err: Error, req: any, res: any, next: any) => void;
+}
+
+export function createWebhookNormalizer(options?: WebhookNormalizerOptions): RequestHandler;
+export const webhookNormalizerMiddleware: typeof createWebhookNormalizer;
+

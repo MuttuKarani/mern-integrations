@@ -38,3 +38,10 @@ export { S3Provider } from './storage/providers/s3/S3Provider.js';
 export { MockStorageProvider } from './testing/MockStorageProvider.js';
 export { createStorageProvider } from './storage/factories/StorageFactory.js';
 
+// Enterprise Middlewares module
+export { InMemoryIdempotencyStore } from './middleware/idempotency/InMemoryIdempotencyStore.js';
+export { createIdempotencyMiddleware, idempotencyMiddleware } from './middleware/idempotency/idempotencyMiddleware.js';
+export { normalizeWebhookEvent } from './middleware/webhooks/normalizeWebhookEvent.js';
+export { createWebhookNormalizer, webhookNormalizerMiddleware } from './middleware/webhooks/webhookNormalizerMiddleware.js';
+
+
