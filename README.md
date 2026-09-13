@@ -74,6 +74,14 @@ mern-integrations/
 │   └── workflows/
 │       └── ci.yml                    # GitHub Actions CI matrix workflow
 │
+├── bin/
+│   ├── cli.js                        # Executable CLI entrypoint (npx mern-integrations init)
+│   ├── args.js                       # CLI argument & flag parser
+│   ├── wizard.js                     # Interactive terminal prompts & questionnaire
+│   ├── generator.js                  # Scaffolding template engine
+│   ├── dependencies.js               # Smart peer-dependency calculator & installer
+│   └── templates/                    # Express & Next.js boilerplate templates
+│
 ├── src/
 │   │
 │   ├── core/
@@ -220,6 +228,24 @@ mern-integrations/
 ### Requirements
 - **Node.js**: `>= 18.0.0` (Native ES Modules required)
 - **NPM**: `>= 9.0.0`
+
+### ⚡ Instant Setup with CLI Wizard (`npx mern-integrations init`)
+
+The fastest way to scaffold integrations in an existing or new MERN or Next.js project is using the interactive CLI:
+
+```bash
+npx mern-integrations init
+```
+
+The interactive wizard prompts for your framework (**Express.js** or **Next.js App Router**), desired providers, and enterprise middlewares, automatically calculates and installs only the required optional peer dependencies, generates `.env.example` keys with documentation links, and scaffolds ready-to-run route controllers and configuration files.
+
+#### Non-Interactive Automation (CI/CD / Scripting):
+```bash
+# Example: Express with PhonePe, Resend, Twilio, Cloudinary, and Idempotency Middleware
+npx mern-integrations init --payments phonepe --email resend --sms twilio --storage cloudinary --middlewares idempotency,webhook-normalizer --yes
+```
+
+---
 
 ### Quick Start (e.g. Razorpay + Resend Stack)
 

@@ -18,8 +18,12 @@
     "./middleware": "./src/middleware/index.js",
     "./package.json": "./package.json"
   },
+  "bin": {
+    "mern-integrations": "./bin/cli.js"
+  },
   "files": [
     "src",
+    "bin",
     "index.d.ts",
     "README.md",
     "LICENSE",
@@ -33,6 +37,7 @@
     "node": ">=18.0.0"
   },
   "scripts": {
+    "cli": "node ./bin/cli.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
@@ -54,6 +59,8 @@
   "keywords": [
     "mern",
     "integration",
+    "cli",
+    "scaffolder",
     "payments",
     "email",
     "sms",
