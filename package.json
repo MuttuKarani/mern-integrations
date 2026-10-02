@@ -138,7 +138,7 @@
     "cloudinary": "^2.11.0",
     "dotenv": "^17.4.2",
     "jest": "^30.5.1",
-    "nodemailer": "^10.0.1",
+    "nodemailer": "^10.0.12",
     "razorpay": "^2.9.5",
     "resend": "^6.26.0",
     "stripe": "^22.6.1"
