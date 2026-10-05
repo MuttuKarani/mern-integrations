@@ -1,10 +1,10 @@
-import { SMSProvider } from '../../interfaces/SMSProvider.js';
-import { IntegrationError } from '../../../core/errors/IntegrationError.js';
-import { ValidationError } from '../../../core/errors/ValidationError.js';
+import { SMSProvider } from "../../interfaces/SMSProvider.js";
+import { IntegrationError } from "../../../core/errors/IntegrationError.js";
+import { ValidationError } from "../../../core/errors/ValidationError.js";
 import {
   validateRequiredString,
-  validateMobileRecipients
-} from '../../../core/utils/validators.js';
+  validateMobileRecipients,
+} from "../../../core/utils/validators.js";
 
 /**
  * MessageBird SMS and WhatsApp Provider implementation.
@@ -35,29 +35,34 @@ export class MessageBirdProvider extends SMSProvider {
    * @throws {ValidationError} If apiKey is missing or not a non-empty string.
    */
   constructor(config = {}) {
-    super('messagebird');
+    super("messagebird");
 
-    if (!config || typeof config !== 'object' || Array.isArray(config)) {
-      throw new ValidationError("Config must be a valid object for 'messagebird' provider", {
-        provider: 'messagebird',
-        details: { field: 'config' }
-      });
+    if (!config || typeof config !== "object" || Array.isArray(config)) {
+      throw new ValidationError(
+        "Config must be a valid object for 'messagebird' provider",
+        {
+          provider: "messagebird",
+          details: { field: "config" },
+        },
+      );
     }
 
     const {
       apiKey,
       channelId = null,
       namespace = null,
-      baseUrl = 'https://conversations.messagebird.com',
-      fetch: customFetch = null
+      baseUrl = "https://conversations.messagebird.com",
+      fetch: customFetch = null,
     } = config;
 
-    validateRequiredString(apiKey, 'apiKey', 'messagebird');
+    validateRequiredString(apiKey, "apiKey", "messagebird");
 
     this.#apiKey = apiKey.trim();
     this.#channelId = channelId ? String(channelId).trim() : null;
     this.#namespace = namespace ? String(namespace).trim() : null;
-    this.#baseUrl = baseUrl ? baseUrl.replace(/\/+$/, '') : 'https://conversations.messagebird.com';
+    this.#baseUrl = baseUrl
+      ? baseUrl.replace(/\/+$/, "")
+      : "https://conversations.messagebird.com";
     this.#fetch = customFetch || globalThis.fetch;
   }
 
@@ -67,7 +72,7 @@ export class MessageBirdProvider extends SMSProvider {
    * @returns {readonly string[]}
    */
   get capabilities() {
-    return Object.freeze(['sendSMS', 'sendWhatsApp']);
+    return Object.freeze(["sendSMS", "sendWhatsApp"]);
   }
 
   /**
@@ -92,40 +97,54 @@ export class MessageBirdProvider extends SMSProvider {
     templateName,
     templateId,
     namespace = null,
-    language = 'en',
+    language = "en",
     variables = null,
     components = null,
     channelId = null,
     ...extraOptions
   } = {}) {
-    const normalizedRecipients = validateMobileRecipients(to, 'to', 'messagebird');
+    const normalizedRecipients = validateMobileRecipients(
+      to,
+      "to",
+      "messagebird",
+    );
 
     const activeTemplateName = templateName || templateId;
-    validateRequiredString(activeTemplateName, 'templateName', 'messagebird');
+    validateRequiredString(activeTemplateName, "templateName", "messagebird");
 
     const activeChannelId = channelId || this.#channelId;
     if (!activeChannelId) {
-      throw new ValidationError("Field 'channelId' is required for MessageBird WhatsApp messaging", {
-        provider: 'messagebird',
-        details: { field: 'channelId' }
-      });
+      throw new ValidationError(
+        "Field 'channelId' is required for MessageBird WhatsApp messaging",
+        {
+          provider: "messagebird",
+          details: { field: "channelId" },
+        },
+      );
     }
 
     const activeNamespace = namespace || this.#namespace;
 
     if (variables !== null && variables !== undefined) {
-      if (typeof variables !== 'object') {
-        throw new ValidationError("Field 'variables' must be an array or an object", {
-          provider: 'messagebird',
-          details: { field: 'variables' }
-        });
+      if (typeof variables !== "object") {
+        throw new ValidationError(
+          "Field 'variables' must be an array or an object",
+          {
+            provider: "messagebird",
+            details: { field: "variables" },
+          },
+        );
       }
     }
 
-    if (components !== null && components !== undefined && !Array.isArray(components)) {
+    if (
+      components !== null &&
+      components !== undefined &&
+      !Array.isArray(components)
+    ) {
       throw new ValidationError("Field 'components' must be an array", {
-        provider: 'messagebird',
-        details: { field: 'components' }
+        provider: "messagebird",
+        details: { field: "components" },
       });
     }
 
@@ -133,22 +152,30 @@ export class MessageBirdProvider extends SMSProvider {
     let formattedComponents = components;
     if (!formattedComponents && variables) {
       const paramsList = Array.isArray(variables)
-        ? variables.map((val) => ({ type: 'text', text: String(val ?? '') }))
-        : Object.values(variables).map((val) => ({ type: 'text', text: String(val ?? '') }));
+        ? variables.map((val) => ({ type: "text", text: String(val ?? "") }))
+        : Object.values(variables).map((val) => ({
+            type: "text",
+            text: String(val ?? ""),
+          }));
 
       if (paramsList.length > 0) {
         formattedComponents = [
           {
-            type: 'body',
-            parameters: paramsList
-          }
+            type: "body",
+            parameters: paramsList,
+          },
+          {
+            type: "button",
+            sub_type: "url",
+            index: 0,
+            parameters: paramsList,
+          },
         ];
       }
     }
 
-    const languageObj = typeof language === 'string'
-      ? { code: language.trim() }
-      : language;
+    const languageObj =
+      typeof language === "string" ? { code: language.trim() } : language;
 
     const recipientsArray = Array.isArray(normalizedRecipients)
       ? normalizedRecipients
@@ -162,38 +189,43 @@ export class MessageBirdProvider extends SMSProvider {
         templateName: activeTemplateName,
         language: languageObj,
         ...(activeNamespace ? { namespace: activeNamespace } : {}),
-        ...(formattedComponents ? { components: formattedComponents } : {})
+        ...(formattedComponents ? { components: formattedComponents } : {}),
       };
 
       const payload = {
-        to: recipientMobile.startsWith('+') ? recipientMobile : `+${recipientMobile}`,
+        to: recipientMobile.startsWith("+")
+          ? recipientMobile
+          : `+${recipientMobile}`,
         from: activeChannelId,
-        type: 'hsm',
+        type: "hsm",
         content: {
-          hsm: hsmPayload
+          hsm: hsmPayload,
         },
-        ...extraOptions
+        ...extraOptions,
       };
 
       const response = await this.#fetch(url, {
-        method: 'POST',
+        method: "POST",
         headers: {
           Authorization: `AccessKey ${this.#apiKey}`,
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
       const json = await this.#parseJsonResponse(response);
 
       if (!response.ok || json?.errors?.length > 0) {
         const firstError = json?.errors?.[0];
-        const errorMsg = firstError?.description || firstError?.message || `MessageBird WhatsApp request failed (HTTP ${response.status})`;
+        const errorMsg =
+          firstError?.description ||
+          firstError?.message ||
+          `MessageBird WhatsApp request failed (HTTP ${response.status})`;
         throw new IntegrationError(errorMsg, {
           code: this.#mapStatusCodeToErrorCode(response.status),
           statusCode: response.status || 502,
-          provider: 'messagebird',
-          details: firstError || null
+          provider: "messagebird",
+          details: firstError || null,
         });
       }
 
@@ -205,21 +237,23 @@ export class MessageBirdProvider extends SMSProvider {
         const json = await sendSingle(recipientsArray[0]);
         return this.normalizeSuccess({
           id: json?.id || null,
-          status: json?.status || 'sent',
+          status: json?.status || "sent",
           recipients: normalizedRecipients,
-          raw: json
+          raw: json,
         });
       }
 
-      const results = await Promise.all(recipientsArray.map((num) => sendSingle(num)));
+      const results = await Promise.all(
+        recipientsArray.map((num) => sendSingle(num)),
+      );
       return this.normalizeSuccess({
         id: results.map((r) => r?.id).filter(Boolean),
-        status: 'sent',
+        status: "sent",
         recipients: normalizedRecipients,
-        raw: results
+        raw: results,
       });
     } catch (error) {
-      throw this.#handleProviderError(error, 'Failed to send WhatsApp message');
+      throw this.#handleProviderError(error, "Failed to send WhatsApp message");
     }
   }
 
@@ -235,9 +269,13 @@ export class MessageBirdProvider extends SMSProvider {
    * @throws {ValidationError} If recipient or message validation fails.
    * @throws {IntegrationError} If MessageBird API fails.
    */
-  async sendSMS({ to, message, originator = 'SMS', ...extraOptions } = {}) {
-    const normalizedRecipients = validateMobileRecipients(to, 'to', 'messagebird');
-    validateRequiredString(message, 'message', 'messagebird');
+  async sendSMS({ to, message, originator = "SMS", ...extraOptions } = {}) {
+    const normalizedRecipients = validateMobileRecipients(
+      to,
+      "to",
+      "messagebird",
+    );
+    validateRequiredString(message, "message", "messagebird");
 
     const recipientsArray = Array.isArray(normalizedRecipients)
       ? normalizedRecipients
@@ -246,44 +284,47 @@ export class MessageBirdProvider extends SMSProvider {
     const payload = {
       recipients: recipientsArray,
       body: message,
-      originator: originator || 'SMS',
-      ...extraOptions
+      originator: originator || "SMS",
+      ...extraOptions,
     };
 
-    const restBaseUrl = 'https://rest.messagebird.com';
+    const restBaseUrl = "https://rest.messagebird.com";
     const url = `${restBaseUrl}/messages`;
 
     try {
       const response = await this.#fetch(url, {
-        method: 'POST',
+        method: "POST",
         headers: {
           Authorization: `AccessKey ${this.#apiKey}`,
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
       const json = await this.#parseJsonResponse(response);
 
       if (!response.ok || json?.errors?.length > 0) {
         const firstError = json?.errors?.[0];
-        const errorMsg = firstError?.description || firstError?.message || `MessageBird SMS request failed (HTTP ${response.status})`;
+        const errorMsg =
+          firstError?.description ||
+          firstError?.message ||
+          `MessageBird SMS request failed (HTTP ${response.status})`;
         throw new IntegrationError(errorMsg, {
           code: this.#mapStatusCodeToErrorCode(response.status),
           statusCode: response.status || 502,
-          provider: 'messagebird',
-          details: firstError || null
+          provider: "messagebird",
+          details: firstError || null,
         });
       }
 
       return this.normalizeSuccess({
         id: json?.id || null,
-        status: json?.recipients?.items?.[0]?.status || 'sent',
+        status: json?.recipients?.items?.[0]?.status || "sent",
         recipients: normalizedRecipients,
-        raw: json
+        raw: json,
       });
     } catch (error) {
-      throw this.#handleProviderError(error, 'Failed to send SMS');
+      throw this.#handleProviderError(error, "Failed to send SMS");
     }
   }
 
@@ -292,12 +333,12 @@ export class MessageBirdProvider extends SMSProvider {
    */
   async sendOTP() {
     throw new IntegrationError(
-      'OTP operations are not currently supported by the MessageBird provider.',
+      "OTP operations are not currently supported by the MessageBird provider.",
       {
-        code: 'UNSUPPORTED_OPERATION',
+        code: "UNSUPPORTED_OPERATION",
         statusCode: 501,
-        provider: 'messagebird'
-      }
+        provider: "messagebird",
+      },
     );
   }
 
@@ -306,12 +347,12 @@ export class MessageBirdProvider extends SMSProvider {
    */
   async verifyOTP() {
     throw new IntegrationError(
-      'OTP operations are not currently supported by the MessageBird provider.',
+      "OTP operations are not currently supported by the MessageBird provider.",
       {
-        code: 'UNSUPPORTED_OPERATION',
+        code: "UNSUPPORTED_OPERATION",
         statusCode: 501,
-        provider: 'messagebird'
-      }
+        provider: "messagebird",
+      },
     );
   }
 
@@ -320,12 +361,12 @@ export class MessageBirdProvider extends SMSProvider {
    */
   async resendOTP() {
     throw new IntegrationError(
-      'OTP operations are not currently supported by the MessageBird provider.',
+      "OTP operations are not currently supported by the MessageBird provider.",
       {
-        code: 'UNSUPPORTED_OPERATION',
+        code: "UNSUPPORTED_OPERATION",
         statusCode: 501,
-        provider: 'messagebird'
-      }
+        provider: "messagebird",
+      },
     );
   }
 
@@ -352,9 +393,9 @@ export class MessageBirdProvider extends SMSProvider {
    * @private
    */
   #mapStatusCodeToErrorCode(status) {
-    if (status === 401 || status === 403) return 'AUTHENTICATION_ERROR';
-    if (status === 429) return 'RATE_LIMIT_EXCEEDED';
-    return 'PROVIDER_ERROR';
+    if (status === 401 || status === 403) return "AUTHENTICATION_ERROR";
+    if (status === 429) return "RATE_LIMIT_EXCEEDED";
+    return "PROVIDER_ERROR";
   }
 
   /**
@@ -372,14 +413,14 @@ export class MessageBirdProvider extends SMSProvider {
 
     let message = error?.message || fallbackMessage;
     if (this.#apiKey) {
-      message = message.replaceAll(this.#apiKey, '[REDACTED]');
+      message = message.replaceAll(this.#apiKey, "[REDACTED]");
     }
 
     return new IntegrationError(message, {
-      code: 'PROVIDER_ERROR',
+      code: "PROVIDER_ERROR",
       statusCode: 502,
-      provider: 'messagebird',
-      details: error?.name ? { name: error.name } : null
+      provider: "messagebird",
+      details: error?.name ? { name: error.name } : null,
     });
   }
 }
