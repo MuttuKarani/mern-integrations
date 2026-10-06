@@ -136,7 +136,7 @@
     "@aws-sdk/lib-storage": "^3.1127.0",
     "@aws-sdk/s3-request-presigner": "^3.1146.0",
     "cloudinary": "^2.11.0",
-    "dotenv": "^17.4.2",
+    "dotenv": "^18.0.5",
     "jest": "^30.5.1",
     "nodemailer": "^10.0.1",
     "razorpay": "^2.9.5",
