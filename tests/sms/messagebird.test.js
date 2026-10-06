@@ -209,6 +209,15 @@ describe('MessageBirdProvider & WhatsApp / SMS Integration', () => {
                     { type: 'text', text: 'John' },
                     { type: 'text', text: 'ORD-999' }
                   ]
+                },
+                {
+                  type: 'button',
+                  sub_type: 'url',
+                  index: 0,
+                  parameters: [
+                    { type: 'text', text: 'John' },
+                    { type: 'text', text: 'ORD-999' }
+                  ]
                 }
               ]
             }
@@ -271,6 +280,12 @@ describe('MessageBirdProvider & WhatsApp / SMS Integration', () => {
               components: [
                 {
                   type: 'body',
+                  parameters: [{ type: 'text', text: '654321' }]
+                },
+                {
+                  type: 'button',
+                  sub_type: 'url',
+                  index: 0,
                   parameters: [{ type: 'text', text: '654321' }]
                 }
               ]
