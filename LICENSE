@@ -1,13 +1,19 @@
-Custom Proprietary License - Internal Use Only
+Custom Proprietary License - Non-Exclusive Commercial Grant
 
 Copyright (c) 2026 Muttu Karani. All Rights Reserved.
 
 License Type: Proprietary / Restricted License (UNLICENSED)
 
 Grant of License:
-Permission is hereby granted for internal organizational use by Springevening Private Limited (SEPL). SEPL may use, execute, and integrate this software for internal operations.
+Permission is hereby granted to Springevening Private Limited (SEPL) on a non-exclusive basis to use, execute, modify, and integrate this software for internal operations as well as for SEPL's client projects and commercial deliverables.
+
+Reservation of Rights:
+This grant is non-exclusive. The copyright owner (Muttu Karani) retains full, sole ownership of the software and reserves the unconditional right to grant licenses, sell, or distribute this software (or any version thereof) to any other companies, entities, or third parties at any time.
 
 Restrictions:
-Redistribution, public publication, open-sourcing, sublicensing, resale, or external sharing of this software (in source or binary forms) to any third party is strictly prohibited without explicit prior written consent from the copyright owner (Muttu Karani).
+1. Public open-sourcing, public distribution, or standalone resale of this software repository/package is strictly prohibited without explicit prior written consent from the copyright owner (Muttu Karani).
+2. Third parties or clients of SEPL do not acquire any standalone distribution or sublicensing rights to this software library beyond its inclusion within SEPL's delivered projects.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR OR COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+Disclaimer of Warranty & Limitation of Liability:
+1. THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, SYSTEM COMPATIBILITY, OR FREEDOM FROM BUGS AND ERRORS.
+2. IN NO EVENT SHALL THE AUTHOR/COPYRIGHT OWNER (MUTTU KARANI) BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR FOR ANY LOSS OF PROFITS, REVENUE, DATA, GOODWILL, OR BUSINESS INTERRUPTION ARISING OUT OF OR IN CONNECTION WITH THE USE, INABILITY TO USE, BUGS, ERRORS, OR DEFECTS IN THIS SOFTWARE, REGARDLESS OF THE THEORY OF LIABILITY (CONTRACT, TORT, OR OTHERWISE).
