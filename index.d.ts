@@ -106,6 +106,15 @@ export class PhonePeProvider extends PaymentProvider {
   verifyWebhook(params: { payload: string | Buffer | Record<string, any>; signature: string; saltKey?: string; saltIndex?: string | number }): Promise<NormalizedSuccess<{ verified: boolean; event?: any }>>;
 }
 
+export class CashfreeProvider extends PaymentProvider {
+  constructor(config?: { appId?: string; clientId?: string; secretKey?: string; clientSecret?: string; apiVersion?: string; baseUrl?: string; testMode?: boolean; fetch?: typeof fetch });
+  createOrder(params: { amount: number; currency?: string; orderId?: string; receipt?: string; customer?: { id?: string; phone?: string; email?: string; name?: string }; customerId?: string; customerPhone?: string; customerEmail?: string; customerName?: string; returnUrl?: string; notifyUrl?: string; notes?: Record<string, any>; orderNote?: string; [key: string]: any }): Promise<NormalizedSuccess<{ id: string; orderId: string; cfOrderId: string; paymentSessionId: string; amount: number; orderAmount: number; currency: string; status: string; receipt: string; entity: string; orderExpiryTime?: string; raw: any }>>;
+  verifyPayment(params: { orderId: string }): Promise<NormalizedSuccess<{ verified: boolean; orderId: string; cfOrderId?: string; paymentId?: string; status: string; orderStatus: string; amount: number; currency: string; payments?: any[]; raw: any }>>;
+  verifyCallback(params: { orderId: string }): Promise<NormalizedSuccess>;
+  refund(params: { orderId: string; amount: number; refundId?: string; note?: string; speed?: 'STANDARD' | 'INSTANT'; [key: string]: any }): Promise<NormalizedSuccess>;
+  verifyWebhook(params: { payload: string | Buffer; signature: string; timestamp: string | number; secret?: string }): Promise<NormalizedSuccess<{ verified: boolean }>>;
+}
+
 export namespace ccavenueCrypto {
   export function encrypt(plainText: string, workingKey: string): string;
   export function decrypt(encText: string, workingKey: string): string;
@@ -126,7 +135,7 @@ export class MockPaymentProvider extends PaymentProvider {
 }
 
 export function createPaymentProvider(config: {
-  provider: 'razorpay' | 'ccavenue' | 'stripe' | 'phonepe' | 'mock' | (string & {});
+  provider: 'razorpay' | 'ccavenue' | 'stripe' | 'phonepe' | 'cashfree' | 'mock' | (string & {});
   [key: string]: any;
 }): PaymentProvider;
 

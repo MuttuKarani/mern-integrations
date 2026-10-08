@@ -116,7 +116,7 @@ export class RazorpayProvider extends PaymentProvider {
    * @throws {ValidationError} If input parameters fail validation.
    * @throws {IntegrationError} If Razorpay API rejects the order creation.
    */
-  async createOrder({ amount, currency, receipt, notes, ...extraOptions } = {}) {
+  async createOrder({ amount, currency, receipt, notes, customer, ...extraOptions } = {}) {
     validateAmountInSmallestUnit(amount, 'amount', 'razorpay');
     validateRequiredString(currency, 'currency', 'razorpay');
 
