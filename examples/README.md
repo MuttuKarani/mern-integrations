@@ -36,6 +36,7 @@ examples/
 ├── README.md                           # This guide
 ├── payments/
 │   ├── razorpay.example.js             # Order creation, HMAC verification & webhooks
+│   ├── cashfree.example.js             # Order session generation, status verification & webhooks
 │   ├── stripe.example.js               # PaymentIntents, verification, refunds
 │   ├── ccavenue.example.js             # AES-128-CBC redirect descriptors & callbacks
 │   └── phonepe.example.js              # Standard checkout redirect & webhook verification
@@ -75,6 +76,7 @@ You can execute any example using convenience npm scripts:
 ```bash
 # Payments
 npm run example:razorpay
+npm run example:cashfree
 npm run example:stripe
 npm run example:ccavenue
 npm run example:phonepe

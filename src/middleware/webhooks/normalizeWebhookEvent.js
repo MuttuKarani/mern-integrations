@@ -43,6 +43,9 @@ export function normalizeWebhookEvent(provider, rawPayload) {
     case 'phonepe':
       return normalizePhonePeEvent(payload);
 
+    case 'cashfree':
+      return normalizeCashfreeEvent(payload);
+
     case 'twilio':
       return normalizeTwilioEvent(payload);
 
@@ -55,6 +58,73 @@ export function normalizeWebhookEvent(provider, rawPayload) {
     default:
       return normalizeFallbackEvent(normProvider, payload);
   }
+}
+
+/**
+ * Normalizes Cashfree webhook events.
+ * @param {Object} raw
+ * @returns {UnifiedWebhookEvent}
+ */
+function normalizeCashfreeEvent(raw) {
+  const originalEvent = String(raw.type || raw.event || 'unknown');
+  let eventType = 'unknown';
+
+  switch (originalEvent) {
+    case 'ORDER_PAID_WEBHOOK':
+    case 'PAYMENT_SUCCESS_WEBHOOK':
+      eventType = 'payment.success';
+      break;
+    case 'PAYMENT_FAILED_WEBHOOK':
+    case 'PAYMENT_USER_DROPPED_WEBHOOK':
+      eventType = 'payment.failed';
+      break;
+    case 'REFUND_SUCCESS_WEBHOOK':
+      eventType = 'refund.success';
+      break;
+    case 'REFUND_FAILED_WEBHOOK':
+      eventType = 'refund.failed';
+      break;
+    default:
+      eventType = originalEvent;
+  }
+
+  const data = raw.data || {};
+  const order = data.order || {};
+  const payment = data.payment || {};
+  const customer = data.customer_details || {};
+
+  const amount =
+    typeof payment.payment_amount === 'number'
+      ? Math.round(payment.payment_amount * 100)
+      : typeof order.order_amount === 'number'
+      ? Math.round(order.order_amount * 100)
+      : null;
+
+  const currency = payment.payment_currency || order.order_currency || 'INR';
+
+  return {
+    id: String(payment.cf_payment_id || order.cf_order_id || raw.event_id || `cf_${Date.now()}`),
+    provider: 'cashfree',
+    eventType,
+    originalEvent,
+    timestamp: raw.event_time ? new Date(raw.event_time) : new Date(),
+    livemode: true,
+    resource: {
+      id: String(payment.cf_payment_id || order.order_id || ''),
+      orderId: order.order_id || null,
+      amount,
+      currency: String(currency).toUpperCase(),
+      status: payment.payment_status || order.order_status || null,
+      customer: {
+        id: customer.customer_id || null,
+        email: customer.customer_email || null,
+        phone: customer.customer_phone || null,
+        name: customer.customer_name || null
+      },
+      metadata: order.order_tags || {}
+    },
+    raw
+  };
 }
 
 /**

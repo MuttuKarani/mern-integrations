@@ -2,6 +2,7 @@ import { RazorpayProvider } from '../providers/razorpay/RazorpayProvider.js';
 import { CCAvenueProvider } from '../providers/ccavenue/CCAvenueProvider.js';
 import { StripeProvider } from '../providers/stripe/StripeProvider.js';
 import { PhonePeProvider } from '../providers/phonepe/PhonePeProvider.js';
+import { CashfreeProvider } from '../providers/cashfree/CashfreeProvider.js';
 import { MockPaymentProvider } from '../../testing/MockPaymentProvider.js';
 import { IntegrationError } from '../../core/errors/IntegrationError.js';
 import { ValidationError } from '../../core/errors/ValidationError.js';
@@ -11,10 +12,11 @@ import { validateRequiredObject, validateRequiredString } from '../../core/utils
  * Factory function to instantiate payment provider instances based on configuration.
  *
  * @param {Object} config - Configuration object.
- * @param {string} config.provider - Provider name identifier ('razorpay', 'ccavenue', 'stripe', 'phonepe', 'mock').
+ * @param {string} config.provider - Provider name identifier ('razorpay', 'ccavenue', 'stripe', 'phonepe', 'cashfree', 'mock').
  * @param {string} [config.keyId] - API Key / ID for Razorpay.
  * @param {string} [config.keySecret] - API Key Secret for Razorpay.
- * @param {string} [config.secretKey] - Secret Key for Stripe.
+ * @param {string} [config.appId] - App ID / Client ID for Cashfree.
+ * @param {string} [config.secretKey] - Secret Key for Stripe / Cashfree.
  * @param {string} [config.webhookSecret] - Webhook signing secret.
  * @param {string} [config.merchantId] - Merchant ID for CCAvenue / PhonePe.
  * @param {string} [config.saltKey] - Salt Key for PhonePe.
@@ -24,7 +26,8 @@ import { validateRequiredObject, validateRequiredString } from '../../core/utils
  * @param {string} [config.baseUrl] - Custom base gateway URL.
  * @param {boolean} [config.testMode] - Test mode flag.
  * @param {Object} [config.client] - Pre-instantiated SDK client (optional, for testing).
- * @returns {RazorpayProvider|CCAvenueProvider|StripeProvider|PhonePeProvider|MockPaymentProvider}
+ * @param {Function} [config.fetch] - Custom fetch function (for PhonePe / Cashfree).
+ * @returns {RazorpayProvider|CCAvenueProvider|StripeProvider|PhonePeProvider|CashfreeProvider|MockPaymentProvider}
  * @throws {ValidationError} If config or provider name is invalid.
  * @throws {IntegrationError} If the specified provider is not supported.
  */
@@ -47,12 +50,15 @@ export function createPaymentProvider(config) {
     case 'phonepe':
       return new PhonePeProvider(config);
 
+    case 'cashfree':
+      return new CashfreeProvider(config);
+
     case 'mock':
       return new MockPaymentProvider(config);
 
     default:
       throw new IntegrationError(
-        `Unsupported payment provider '${config.provider}'. Supported providers: razorpay, ccavenue, stripe, phonepe, mock`,
+        `Unsupported payment provider '${config.provider}'. Supported providers: razorpay, ccavenue, stripe, phonepe, cashfree, mock`,
         {
           code: 'UNSUPPORTED_PROVIDER',
           statusCode: 400,

@@ -11,6 +11,7 @@ export { RazorpayProvider } from './payments/providers/razorpay/RazorpayProvider
 export { CCAvenueProvider } from './payments/providers/ccavenue/CCAvenueProvider.js';
 export { StripeProvider } from './payments/providers/stripe/StripeProvider.js';
 export { PhonePeProvider } from './payments/providers/phonepe/PhonePeProvider.js';
+export { CashfreeProvider } from './payments/providers/cashfree/CashfreeProvider.js';
 export { MockPaymentProvider } from './testing/MockPaymentProvider.js';
 export { createPaymentProvider } from './payments/factories/PaymentFactory.js';
 export * as ccavenueCrypto from './payments/providers/ccavenue/ccavenue.crypto.js';

@@ -148,7 +148,7 @@ COMMANDS:
 
 OPTIONS:
   -f,  --framework <name>     Target framework: express (default) or next
-  -p,  --payments <list>      Payment provider(s): phonepe, razorpay, stripe, ccavenue, none
+  -p,  --payments <list>      Payment provider(s): cashfree, phonepe, razorpay, stripe, ccavenue, none
   -e,  --email <provider>     Email provider: resend, nodemailer, ses, none
   -s,  --sms <provider>       SMS/OTP provider: twilio, msg91, messagebird, none
   -st, --storage <provider>   Storage provider: cloudinary, s3, none

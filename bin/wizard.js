@@ -49,14 +49,15 @@ ${c.cyan}└──────────────────────�
     // 2. Payments selection
     if (!initialOptions.paymentsSpecified) {
       console.log(`${c.bold}? Which payment provider(s) do you need?${c.reset} ${c.dim}(comma-separated numbers)${c.reset}`);
-      console.log(`  ${c.green}1)${c.reset} PhonePe (UPI, QR & Standard Checkout)`);
-      console.log(`  ${c.green}2)${c.reset} Razorpay (Cards, Netbanking, UPI)`);
-      console.log(`  ${c.green}3)${c.reset} Stripe (Global Cards & Elements)`);
-      console.log(`  ${c.green}4)${c.reset} CCAvenue (Indian Gateway & Netbanking)`);
-      console.log(`  ${c.green}5)${c.reset} None / Skip`);
+      console.log(`  ${c.green}1)${c.reset} Cashfree (PG, UPI, Cards & Web Checkout)`);
+      console.log(`  ${c.green}2)${c.reset} PhonePe (UPI, QR & Standard Checkout)`);
+      console.log(`  ${c.green}3)${c.reset} Razorpay (Cards, Netbanking, UPI)`);
+      console.log(`  ${c.green}4)${c.reset} Stripe (Global Cards & Elements)`);
+      console.log(`  ${c.green}5)${c.reset} CCAvenue (Indian Gateway & Netbanking)`);
+      console.log(`  ${c.green}6)${c.reset} None / Skip`);
       const ans = (await rl.question(`${c.cyan}Enter numbers (e.g. 1,2) [1]: ${c.reset}`)).trim() || '1';
 
-      const map = { '1': 'phonepe', '2': 'razorpay', '3': 'stripe', '4': 'ccavenue', '5': 'none' };
+      const map = { '1': 'cashfree', '2': 'phonepe', '3': 'razorpay', '4': 'stripe', '5': 'ccavenue', '6': 'none' };
       const selected = ans
         .split(',')
         .map((k) => map[k.trim()] || k.trim().toLowerCase())

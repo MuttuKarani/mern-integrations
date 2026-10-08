@@ -19,6 +19,7 @@ A modular, reusable backend integration library for MERN stack applications. Thi
   - [Storage Factory](#storage-factory)
 - [6. Payment Providers](#6-payment-providers)
   - [Amount Convention](#amount-convention)
+  - [Cashfree Integration](#cashfree-integration)
   - [Razorpay Integration](#razorpay-integration)
   - [CCAvenue Integration](#ccavenue-integration)
   - [Stripe Integration](#stripe-integration)
@@ -97,6 +98,8 @@ mern-integrations/
 │   │   ├── interfaces/
 │   │   │   └── PaymentProvider.js        # Abstract base payment class
 │   │   ├── providers/
+│   │   │   ├── cashfree/
+│   │   │   │   └── CashfreeProvider.js   # Cashfree PG SDK-less implementation
 │   │   │   ├── razorpay/
 │   │   │   │   └── RazorpayProvider.js   # Razorpay SDK implementation
 │   │   │   ├── ccavenue/
@@ -196,6 +199,7 @@ mern-integrations/
 │   │   ├── api-contract.test.js          # Package export contract and integrity tests
 │   │   └── dependencies.test.js          # Optional dependencies & lazy-loading tests
 │   ├── payments/
+│   │   ├── cashfree.test.js              # Cashfree unit tests with HTTP mocks
 │   │   ├── razorpay.test.js              # Razorpay unit tests with SDK mocks
 │   │   ├── ccavenue.test.js              # CCAvenue unit tests with crypto vectors
 │   │   ├── stripe.test.js                # Stripe unit tests with SDK mocks
@@ -294,7 +298,8 @@ async function processOrder(customer) {
 
 | Provider Domain | Provider Identifier | Required External SDK Package(s) | Notes |
 |---|---|---|---|
-| **Payments** | `razorpay` | `razorpay` | Optional peer dependency |
+| **Payments** | `cashfree` | *None* | Uses Node.js native `fetch` & `node:crypto` |
+| | `razorpay` | `razorpay` | Optional peer dependency |
 | | `stripe` | `stripe` | Optional peer dependency |
 | | `ccavenue` | *None* | Uses Node.js built-in `node:crypto` |
 | | `phonepe` | *None* | Uses Node.js native `fetch` & `node:crypto` |
@@ -431,6 +436,12 @@ cp .env.example .env
 ```
 
 ```env
+# Cashfree PG Credentials
+CASHFREE_APP_ID=TEST11286295edb615b6136d4c10c5e359268211
+CASHFREE_SECRET_KEY=cfsk_ma_test_074dbe3acec5c41338c85e44e5b66ae5_d6a3ef8f
+CASHFREE_ENV=SANDBOX
+CASHFREE_API_VERSION=2023-08-01
+
 # Razorpay Credentials
 RAZORPAY_KEY_ID=rzp_test_YourKeyIdHere
 RAZORPAY_KEY_SECRET=YourKeySecretHere
@@ -623,6 +634,12 @@ const s3Storage = createStorageProvider({
 ### Amount Convention
 - **All payment amounts must strictly be passed as positive integers representing the smallest currency sub-unit.**
 - **For INR**, amounts must be in **paise** (1 Rupee = 100 paise). ₹10.00 &rarr; `1000`.
+
+### Cashfree Integration
+- `createOrder({ amount, currency, receipt, customer, notes })`: Creates an order via Cashfree PG REST API and returns `payment_session_id` for Cashfree Web Checkout SDK v3 modal.
+- `verifyPayment({ orderId })`: Queries live order status from Cashfree PG and maps order status (`PAID` &rarr; `verified: true`).
+- `refund({ orderId, amount, refundId, note })`: Dispatches full or partial refunds via Cashfree Refunds API.
+- `verifyWebhook({ payload, signature, timestamp, secret })`: Cryptographically verifies webhook HMAC-SHA256 signature using `x-webhook-signature` and `x-webhook-timestamp`.
 
 ### Razorpay Integration
 - `createOrder({ amount, currency, receipt, notes })`: Creates an order via Razorpay REST API.
@@ -986,6 +1003,161 @@ app.post('/api/webhooks/phonepe', async (req, res) => {
 #### Security Notes
 - `saltKey` is encapsulated inside `#saltKey` private class field and never leaks into `Object.keys()` or `JSON.stringify()`.
 - Checksum validation uses `crypto.timingSafeEqual()` to guard against timing attacks.
+
+---
+
+### Cashfree Integration
+
+`CashfreeProvider` integrates the Cashfree Payment Gateway using direct REST APIs (v2023-08-01+) with zero third-party runtime dependencies (native Node.js `fetch` and `node:crypto`). It manages order creation (returning `payment_session_id` for Cashfree Web Checkout SDK v3 modal or redirect flows), payment verification, refunds, and cryptographic webhook signature verification.
+
+#### Provider Initialization
+
+```javascript
+import { createPaymentProvider, CashfreeProvider } from 'mern-integrations';
+
+// Via Factory (auto-hydrates from process.env.CASHFREE_*)
+const cashfree = createPaymentProvider({
+  provider: 'cashfree',
+  appId: process.env.CASHFREE_APP_ID,
+  secretKey: process.env.CASHFREE_SECRET_KEY,
+  testMode: process.env.CASHFREE_ENV === 'SANDBOX'
+});
+
+// Or Direct Instantiation
+const directCashfree = new CashfreeProvider({
+  appId: process.env.CASHFREE_APP_ID,
+  secretKey: process.env.CASHFREE_SECRET_KEY,
+  env: 'SANDBOX' // 'SANDBOX' or 'PRODUCTION'
+});
+```
+
+#### 1. Creating an Order (`createOrder`)
+
+Creates a payment order on Cashfree and generates a `payment_session_id` required by the Cashfree Web Checkout frontend SDK:
+
+```javascript
+const order = await cashfree.createOrder({
+  amount: 50000, // ₹500.00 in paise
+  currency: 'INR',
+  receipt: `rcpt_${Date.now()}`,
+  customer: {
+    id: 'cust_user_123',
+    name: 'Alex Johnson',
+    email: 'alex@example.com',
+    phone: '9876543210'
+  },
+  notes: {
+    userId: 'user_123',
+    plan: 'premium'
+  }
+});
+
+// Send `order.data.paymentSessionId` to your client application
+console.log('Payment Session ID:', order.data.paymentSessionId);
+```
+
+#### Normalized Order Response:
+```json
+{
+  "success": true,
+  "provider": "cashfree",
+  "data": {
+    "id": "cf_ord_1728400000_abc123",
+    "orderId": "cf_ord_1728400000_abc123",
+    "cfOrderId": "1461783766901822464",
+    "paymentSessionId": "session_udmgIbzbpI38yf1hLLa17...",
+    "amount": 50000,
+    "orderAmount": 500,
+    "currency": "INR",
+    "status": "ACTIVE",
+    "receipt": "rcpt_1728400000",
+    "entity": "order",
+    "raw": { /* Upstream Cashfree order object */ }
+  }
+}
+```
+
+#### 2. Frontend Client Integration (Cashfree JS SDK v3)
+
+In your frontend application (React, Next.js, or HTML/JS), load the Cashfree SDK and launch the checkout modal using `paymentSessionId`:
+
+```javascript
+// 1. Ensure script is loaded: https://sdk.cashfree.com/js/v3/cashfree.js
+const cashfree = window.Cashfree({ mode: 'sandbox' }); // or 'production'
+
+// 2. Open checkout modal
+await cashfree.checkout({
+  paymentSessionId: order.paymentSessionId,
+  redirectTarget: '_modal' // '_modal' for modal popup, or '_self' for page redirect
+});
+```
+
+#### 3. Verifying Payment / Order Status (`verifyPayment`)
+
+Queries live order status directly from Cashfree:
+
+```javascript
+const verification = await cashfree.verifyPayment({
+  orderId: 'cf_ord_1728400000_abc123'
+});
+
+if (verification.data.verified) {
+  console.log('Payment successful! Status:', verification.data.status); // 'PAID'
+} else {
+  console.log('Payment pending or not completed:', verification.data.status); // 'ACTIVE', 'EXPIRED'
+}
+```
+
+#### 4. Processing Refunds (`refund`)
+
+Dispatches full or partial refunds for settled orders:
+
+```javascript
+const refund = await cashfree.refund({
+  orderId: 'cf_ord_1728400000_abc123',
+  amount: 25000, // Partial refund: ₹250.00 in paise
+  refundId: `ref_${Date.now()}`,
+  note: 'Customer return request'
+});
+
+console.log('Refund ID:', refund.data.id, 'Status:', refund.data.status);
+```
+
+#### 5. Webhook Signature Verification (`verifyWebhook`)
+
+Cashfree dispatches `x-webhook-signature` and `x-webhook-timestamp` headers with each webhook payload. The signature is computed using HMAC-SHA256 over `timestamp + rawPayload`:
+
+```javascript
+app.post('/api/webhooks/cashfree', express.raw({ type: 'application/json' }), async (req, res) => {
+  const signature = req.headers['x-webhook-signature'];
+  const timestamp = req.headers['x-webhook-timestamp'];
+
+  try {
+    const verification = await cashfree.verifyWebhook({
+      payload: req.body, // Buffer or raw string
+      signature,
+      timestamp
+    });
+
+    if (!verification.data.verified) {
+      return res.status(400).send('Invalid webhook signature');
+    }
+
+    const { event, data } = verification.data;
+    console.log(`Verified webhook event: ${event}`);
+
+    // Process event: PAYMENT_SUCCESS_WEBHOOK, PAYMENT_FAILED_WEBHOOK, etc.
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+});
+```
+
+#### Security & Environment Notes
+- **Automatic Sandbox Detection**: Test keys (e.g. `TEST...` or secret keys containing `test`) and `env: 'SANDBOX'` automatically route requests to `https://sandbox.cashfree.com/pg` to prevent accidental production rejections.
+- **Credential Protection**: `#secretKey` is a private class field; omitted from `Object.keys()`, `JSON.stringify()`, and automatically redacted from error messages with `[REDACTED]`.
+- **Timing-Safe Cryptography**: Webhook signature verification uses `crypto.timingSafeEqual()` to guard against timing analysis attacks.
 
 ---
 
@@ -2178,6 +2350,7 @@ Complete, runnable examples are organized under the [`examples/`](./examples) di
 ```bash
 # Payments
 npm run example:razorpay
+npm run example:cashfree
 npm run example:stripe
 npm run example:ccavenue
 npm run example:phonepe

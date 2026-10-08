@@ -56,6 +56,7 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
         'NodemailerProvider',
         'PaymentProvider',
         'PhonePeProvider',
+        'CashfreeProvider',
         'RazorpayProvider',
         'ResendProvider',
         'S3Provider',
@@ -94,6 +95,7 @@ describe('Phase 19: API Contract & Regression Hardening', () => {
       const actualPaymentsExports = Object.keys(paymentsModule).sort();
       const expectedPaymentsExports = [
         'CCAvenueProvider',
+        'CashfreeProvider',
         'MockPaymentProvider',
         'PaymentProvider',
         'PhonePeProvider',
