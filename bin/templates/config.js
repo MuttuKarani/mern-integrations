@@ -22,7 +22,17 @@ export function generateConfigTemplate(options = {}) {
 
   // 1. Payment providers
   for (const p of payments) {
-    if (p === 'phonepe') {
+    if (p === 'cashfree') {
+      instances.push(`
+// Cashfree Payment Provider
+export const cashfree = createPaymentProvider({
+  provider: 'cashfree',
+  appId: process.env.CASHFREE_APP_ID,
+  secretKey: process.env.CASHFREE_SECRET_KEY,
+  testMode: (process.env.CASHFREE_ENV || 'SANDBOX').toUpperCase() === 'SANDBOX',
+  apiVersion: process.env.CASHFREE_API_VERSION || '2023-08-01'
+});`);
+    } else if (p === 'phonepe') {
       instances.push(`
 // PhonePe Payment Provider
 export const phonepe = createPaymentProvider({

@@ -13,6 +13,16 @@ export function generateEnvTemplate(options = {}) {
   const payments = Array.isArray(options.payments) ? options.payments : [];
 
   // Payments
+  if (payments.includes('cashfree')) {
+    sections.push(`
+# --- Cashfree PG (Payments) ---
+# Merchant Dashboard: https://merchant.cashfree.com/
+CASHFREE_APP_ID=TEST11286295edb615b6136d4c10c5e359268211
+CASHFREE_SECRET_KEY=cfsk_ma_test_074dbe3acec5c41338c85e44e5b66ae5_d6a3ef8f
+CASHFREE_ENV=SANDBOX
+CASHFREE_API_VERSION=2023-08-01`);
+  }
+
   if (payments.includes('phonepe')) {
     sections.push(`
 # --- PhonePe (Payments) ---

@@ -13,6 +13,7 @@ import { spawnSync } from 'node:child_process';
  */
 export const PROVIDER_DEPENDENCIES = {
   // Payments
+  cashfree: [],
   phonepe: [],
   ccavenue: [],
   razorpay: ['razorpay'],

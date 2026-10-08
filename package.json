@@ -42,6 +42,7 @@
     "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "example:razorpay": "node examples/payments/razorpay.example.js",
+    "example:cashfree": "node examples/payments/cashfree.example.js",
     "example:ccavenue": "node examples/payments/ccavenue.example.js",
     "example:stripe": "node examples/payments/stripe.example.js",
     "example:resend": "node examples/email/resend.example.js",
