@@ -142,6 +142,6 @@
     "nodemailer": "^10.0.1",
     "razorpay": "^2.9.5",
     "resend": "^6.32.0",
-    "stripe": "^22.6.2"
+    "stripe": "^23.0.0"
   }
 }
