@@ -9,6 +9,7 @@ const DEFAULT_SIGNATURE_HEADERS = {
   stripe: 'stripe-signature',
   razorpay: 'x-razorpay-signature',
   phonepe: 'x-verify',
+  cashfree: 'x-webhook-signature',
   twilio: 'x-twilio-signature'
 };
 
@@ -76,12 +77,20 @@ export function createWebhookNormalizer(options = {}) {
           req.headers?.[headerKey] ||
           '';
 
+        const timestamp =
+          req.headers?.['x-webhook-timestamp'] ||
+          req.headers?.['x-timestamp'] ||
+          req.headers?.timestamp ||
+          '';
+
         const payload = req.rawBody || req.body;
 
         try {
           const verificationResult = await providerInstance.verifyWebhook({
             payload,
             signature,
+            timestamp,
+            headers: req.headers,
             url: `https://${req.headers.host || 'localhost'}${req.originalUrl || req.url}`,
             params: req.body
           });

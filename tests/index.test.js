@@ -14,6 +14,7 @@ import {
   CCAvenueProvider,
   StripeProvider,
   PhonePeProvider,
+  CashfreeProvider,
   MockPaymentProvider,
   createPaymentProvider,
   ccavenueCrypto,
@@ -77,6 +78,7 @@ describe('Root Package Exports & Submodules', () => {
       expect(CCAvenueProvider).toBeDefined();
       expect(StripeProvider).toBeDefined();
       expect(PhonePeProvider).toBeDefined();
+      expect(CashfreeProvider).toBeDefined();
       expect(MockPaymentProvider).toBeDefined();
       expect(typeof createPaymentProvider).toBe('function');
       expect(ccavenueCrypto).toBeDefined();
@@ -90,6 +92,7 @@ describe('Root Package Exports & Submodules', () => {
       expect(paymentsModule.CCAvenueProvider).toBe(CCAvenueProvider);
       expect(paymentsModule.StripeProvider).toBe(StripeProvider);
       expect(paymentsModule.PhonePeProvider).toBe(PhonePeProvider);
+      expect(paymentsModule.CashfreeProvider).toBe(CashfreeProvider);
       expect(paymentsModule.MockPaymentProvider).toBe(MockPaymentProvider);
       expect(paymentsModule.createPaymentProvider).toBe(createPaymentProvider);
     });

@@ -29,6 +29,7 @@ describe('CLI Dependencies Resolver (bin/dependencies.js)', () => {
   describe('PROVIDER_DEPENDENCIES Map', () => {
     it('accurately lists zero-dependency providers with empty arrays', () => {
       expect(PROVIDER_DEPENDENCIES.phonepe).toEqual([]);
+      expect(PROVIDER_DEPENDENCIES.cashfree).toEqual([]);
       expect(PROVIDER_DEPENDENCIES.ccavenue).toEqual([]);
       expect(PROVIDER_DEPENDENCIES.twilio).toEqual([]);
       expect(PROVIDER_DEPENDENCIES.msg91).toEqual([]);

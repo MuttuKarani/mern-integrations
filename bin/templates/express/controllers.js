@@ -46,8 +46,8 @@ export async function verifyPayment(req, res) {
 
     if (typeof ${primary}.verifyPayment === 'function') {
       result = await ${primary}.verifyPayment(payload);
-    } else if (typeof ${primary}.verifySignature === 'function') {
-      result = ${primary}.verifySignature(payload);
+    } else if (typeof ${primary}.verifyCallback === 'function') {
+      result = await ${primary}.verifyCallback(payload);
     } else {
       return res.status(400).json({ error: 'Verification method not supported by provider' });
     }
@@ -276,11 +276,11 @@ export async function handleWebhook(req, res) {
   // req.webhookEvent contains the cryptographically verified and canonicalized event
   const event = req.webhookEvent;
 
-  console.log(\`[Webhook Event Received] Provider: \${event.provider} | Type: \${event.type} | ResourceId: \${event.resourceId}\`);
+  console.log(\`[Webhook Event Received] Provider: \${event.provider} | Type: \${event.eventType} | ResourceId: \${event.resource?.id}\`);
 
   try {
-    switch (event.type) {
-      case 'payment.succeeded':
+    switch (event.eventType) {
+      case 'payment.success':
         // Handle successful payment in your database
         // await orderService.markPaid(event.resourceId, event.amount);
         break;
@@ -290,7 +290,7 @@ export async function handleWebhook(req, res) {
         // await orderService.markFailed(event.resourceId);
         break;
 
-      case 'refund.processed':
+      case 'refund.success':
         // Handle refund processing
         // await orderService.recordRefund(event.resourceId, event.amount);
         break;
@@ -301,7 +301,7 @@ export async function handleWebhook(req, res) {
         break;
 
       default:
-        console.log(\`Unhandled canonical webhook event type: \${event.type}\`);
+        console.log(\`Unhandled canonical webhook event type: \${event.eventType}\`);
     }
 
     res.status(200).json({ status: 'success', received: true });
