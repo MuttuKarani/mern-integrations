@@ -9,6 +9,8 @@ import {
   RazorpayProvider,
   StripeProvider,
   CCAvenueProvider,
+  PhonePeProvider,
+  CashfreeProvider,
   ResendProvider,
   NodemailerProvider,
   SESProvider,
@@ -255,6 +257,17 @@ describe('Optional Dependencies & Safe Lazy Loading Architecture', () => {
     });
   });
 
+  describe('Payment Providers zero external dependencies', () => {
+    test('Cashfree, PhonePe, and CCAvenue operate without third-party SDK dependencies', () => {
+      const cf = new CashfreeProvider({ appId: 'CF_TEST', secretKey: 'cf_sec' });
+      const pp = new PhonePeProvider({ merchantId: 'MERCHANT', saltKey: 'salt', saltIndex: 1 });
+      const cc = new CCAvenueProvider({ merchantId: 'MERCHANT', accessCode: 'access', workingKey: 'working' });
+      expect(cf.name).toBe('cashfree');
+      expect(pp.name).toBe('phonepe');
+      expect(cc.name).toBe('ccavenue');
+    });
+  });
+
   describe('Storage Providers Lazy Loading', () => {
     describe('CloudinaryProvider with missing SDK', () => {
       test('upload and delete throw MISSING_PROVIDER_DEPENDENCY when cloudinary is missing', async () => {
@@ -434,6 +447,8 @@ describe('Optional Dependencies & Safe Lazy Loading Architecture', () => {
       expect(RazorpayProvider).toBeDefined();
       expect(StripeProvider).toBeDefined();
       expect(CCAvenueProvider).toBeDefined();
+      expect(PhonePeProvider).toBeDefined();
+      expect(CashfreeProvider).toBeDefined();
       expect(ResendProvider).toBeDefined();
       expect(NodemailerProvider).toBeDefined();
       expect(SESProvider).toBeDefined();

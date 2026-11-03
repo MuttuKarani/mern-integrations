@@ -156,6 +156,60 @@ describe('Enterprise Middleware: Unified Webhook Event Normalizer', () => {
       });
     });
 
+    describe('Cashfree normalization', () => {
+      it('should normalize ORDER_PAID_WEBHOOK and PAYMENT_SUCCESS_WEBHOOK into payment.success', () => {
+        const cashfreePayload = {
+          type: 'PAYMENT_SUCCESS_WEBHOOK',
+          event_time: '2026-10-08T18:00:00Z',
+          data: {
+            order: {
+              order_id: 'order_cf_123',
+              order_amount: 500.0,
+              order_currency: 'INR'
+            },
+            payment: {
+              cf_payment_id: 'pay_cf_999',
+              payment_amount: 500.0,
+              payment_currency: 'INR',
+              payment_status: 'SUCCESS'
+            },
+            customer_details: {
+              customer_id: 'cust_001',
+              customer_name: 'John Doe',
+              customer_email: 'john@example.com',
+              customer_phone: '9876543210'
+            }
+          }
+        };
+
+        const event = normalizeWebhookEvent('cashfree', cashfreePayload);
+
+        expect(event.provider).toBe('cashfree');
+        expect(event.eventType).toBe('payment.success');
+        expect(event.originalEvent).toBe('PAYMENT_SUCCESS_WEBHOOK');
+        expect(event.resource.id).toBe('pay_cf_999');
+        expect(event.resource.orderId).toBe('order_cf_123');
+        expect(event.resource.amount).toBe(50000);
+        expect(event.resource.currency).toBe('INR');
+        expect(event.resource.status).toBe('SUCCESS');
+        expect(event.resource.customer.email).toBe('john@example.com');
+      });
+
+      it('should normalize PAYMENT_FAILED_WEBHOOK into payment.failed and REFUND_SUCCESS_WEBHOOK into refund.success', () => {
+        const failed = normalizeWebhookEvent('cashfree', {
+          type: 'PAYMENT_FAILED_WEBHOOK',
+          data: { order: { order_id: 'cf_ord_fail' } }
+        });
+        expect(failed.eventType).toBe('payment.failed');
+
+        const refund = normalizeWebhookEvent('cashfree', {
+          type: 'REFUND_SUCCESS_WEBHOOK',
+          data: { refund: { cf_refund_id: 'cf_ref_1' } }
+        });
+        expect(refund.eventType).toBe('refund.success');
+      });
+    });
+
     describe('Twilio normalization', () => {
       it('should normalize delivered, failed, sent, and queued message status callbacks', () => {
         const delivered = normalizeWebhookEvent('twilio', {
@@ -422,6 +476,53 @@ describe('Enterprise Middleware: Unified Webhook Event Normalizer', () => {
       expect(customHandlerCalled).toBe(true);
       expect(res.statusCode).toBe(403);
       expect(res._body).toEqual({ custom: 'forbidden' });
+    });
+
+    it('should verify Cashfree signature using x-webhook-signature and x-webhook-timestamp headers', async () => {
+      const mockProvider = {
+        verifyWebhook: jest.fn().mockImplementation(async ({ signature, timestamp }) => {
+          expect(signature).toBe('cf_valid_sig');
+          expect(timestamp).toBe('1728417600');
+          return {
+            data: {
+              verified: true,
+              event: {
+                type: 'PAYMENT_SUCCESS_WEBHOOK',
+                data: {
+                  order: { order_id: 'cf_ord_1', order_amount: 100 },
+                  payment: { cf_payment_id: 'cf_pay_1', payment_amount: 100, payment_status: 'SUCCESS' }
+                }
+              }
+            }
+          };
+        })
+      };
+
+      const middleware = createWebhookNormalizer({
+        provider: 'cashfree',
+        getProvider: mockProvider,
+        verifySignature: true
+      });
+
+      const { req, res } = createMockHttp({
+        headers: {
+          'x-webhook-signature': 'cf_valid_sig',
+          'x-webhook-timestamp': '1728417600'
+        },
+        body: { raw: true }
+      });
+
+      let nextCalled = false;
+      await middleware(req, res, () => {
+        nextCalled = true;
+      });
+
+      expect(nextCalled).toBe(true);
+      expect(mockProvider.verifyWebhook).toHaveBeenCalledTimes(1);
+      expect(req.webhookEvent).toBeDefined();
+      expect(req.webhookEvent.provider).toBe('cashfree');
+      expect(req.webhookEvent.eventType).toBe('payment.success');
+      expect(req.webhookEvent.resource.id).toBe('cf_pay_1');
     });
   });
 });

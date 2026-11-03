@@ -35,8 +35,8 @@ export async function POST(request) {
       let result;
       if (typeof ${primary}.verifyPayment === 'function') {
         result = await ${primary}.verifyPayment(data);
-      } else if (typeof ${primary}.verifySignature === 'function') {
-        result = ${primary}.verifySignature(data);
+      } else if (typeof ${primary}.verifyCallback === 'function') {
+        result = await ${primary}.verifyCallback(data);
       }
       return NextResponse.json(result, { status: 200 });
     }
@@ -78,10 +78,28 @@ export async function POST(request) {
     const headers = Object.fromEntries(request.headers.entries());
 
     // 1. Verify signature if provider supports it
-    if (typeof ${primary}.verifyWebhookSignature === 'function') {
-      const sigHeader = headers['x-razorpay-signature'] || headers['stripe-signature'];
-      const verified = await ${primary}.verifyWebhookSignature(rawBody, sigHeader);
-      if (!verified) {
+    if (typeof ${primary}.verifyWebhook === 'function') {
+      const sigHeader =
+        headers['x-razorpay-signature'] ||
+        headers['stripe-signature'] ||
+        headers['x-verify'] ||
+        headers['x-webhook-signature'] ||
+        headers['x-signature'] ||
+        '';
+
+      const timestampHeader =
+        headers['x-webhook-timestamp'] ||
+        headers['x-timestamp'] ||
+        headers['timestamp'] ||
+        '';
+
+      const verifyResult = await ${primary}.verifyWebhook({
+        payload: rawBody,
+        signature: sigHeader,
+        timestamp: timestampHeader
+      });
+
+      if (!verifyResult || verifyResult.data?.verified === false) {
         return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 400 });
       }
     }
@@ -94,16 +112,12 @@ export async function POST(request) {
       payload = rawBody;
     }
 
-    const event = normalizeWebhookEvent({
-      provider: '${primary}',
-      payload,
-      headers
-    });
+    const event = normalizeWebhookEvent('${primary}', payload);
 
-    console.log(\`[Next.js Webhook] \${event.provider} - \${event.type} (\${event.resourceId})\`);
+    console.log(\`[Next.js Webhook] \${event.provider} - \${event.eventType} (\${event.resource?.id})\`);
 
     // 3. Dispatch to your business logic / database
-    // switch(event.type) { case 'payment.succeeded': ... }
+    // switch(event.eventType) { case 'payment.success': ... }
 
     return NextResponse.json({ received: true, id: event.id });
   } catch (error) {

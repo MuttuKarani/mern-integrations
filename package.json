@@ -82,7 +82,7 @@
     "aws"
   ],
   "author": "Muttu Karani",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MuttuKarani/mern-integrations.git"

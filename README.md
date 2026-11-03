@@ -2,7 +2,9 @@
 
 A modular, reusable backend integration library for MERN stack applications. This library provides a clean provider abstraction layer for payment gateways, email notifications, SMS & OTP services, and other third-party integrations.
 
-> **Note:** This repository is private and intended solely for internal use in MERN backend services. It must not be published to npm.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+> **Open Source:** Released under the [MIT License](LICENSE). Contributions, issues, and feature suggestions are welcome!
 
 ---
 
@@ -50,6 +52,7 @@ A modular, reusable backend integration library for MERN stack applications. Thi
 - [16. Developer Onboarding Guide](#16-developer-onboarding-guide)
   - [Getting Started](#getting-started)
   - [Adding a New Provider](#adding-a-new-provider)
+- [17. License](#17-license)
 
 ---
 
@@ -62,7 +65,7 @@ In standard MERN applications, integrating third-party services directly into co
 - **Strict Input Validation**: Guaranteed validation of amounts, currencies, emails, mobile numbers, and payload types before API calls.
 - **Secure Cryptography & Transport**: Native `crypto.timingSafeEqual()` for Razorpay HMAC signatures, verified `AES-128-CBC` (MD5 key derivation) for CCAvenue, official Stripe SDK with webhook verification, and official AWS SDK v3.
 - **Normalized Response Format**: Consistent success and error response shapes across all providers.
-- **Private & Extensible Foundation**: Built with ES Modules, supporting multi-provider architectures.
+- **Open & Extensible Foundation**: Built with ES Modules, supporting multi-provider architectures.
 
 ---
 
@@ -2508,3 +2511,10 @@ To add a new integration provider (e.g., a new payment gateway or SMS service), 
 
 8. **Add Example Script & Documentation**:
    - Add an example in `examples/<domain>/<provider>.example.js` and document it in `examples/README.md` and `README.md`.
+
+---
+
+## 17. License
+
+This project is open-source software licensed under the [MIT License](LICENSE).
+Copyright &copy; 2026 Muttu Karani and MERN Integrations Contributors.
